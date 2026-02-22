@@ -12,6 +12,11 @@ export const webSearchAuth = {
       /** Optional (0) */
       searxngApiKey: 0 as const,
     },
+    jina: {
+      jinaApiKey: 1 as const,
+      /** Optional (0) */
+      jinaApiUrl: 0 as const,
+    },
   },
   scrapers: {
     firecrawl: {

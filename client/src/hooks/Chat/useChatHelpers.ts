@@ -4,9 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilState, useResetRecoilState, useSetRecoilState } from 'recoil';
 import type { TMessage } from 'librechat-data-provider';
 import type { ActiveJobsResponse } from '~/data-provider';
-import { useGetMessagesByConvoId, useAbortStreamMutation } from '~/data-provider';
+import { useAbortStreamMutation } from '~/data-provider';
 import useChatFunctions from '~/hooks/Chat/useChatFunctions';
-import { useAuthContext } from '~/hooks/AuthContext';
 import useNewConvo from '~/hooks/useNewConvo';
 import store from '~/store';
 
@@ -17,7 +16,6 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   const [filesLoading, setFilesLoading] = useState(false);
 
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuthContext();
   const abortMutation = useAbortStreamMutation();
 
   const { newConversation } = useNewConvo(index);
@@ -28,12 +26,6 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   /** Use paramId (from URL) as primary source for query key - this must match what ChatView uses
   Falling back to conversationId (Recoil) only if paramId is not available */
   const queryParam = paramId === 'new' ? paramId : (paramId ?? conversationId ?? '');
-
-  /* Messages: here simply to fetch, don't export and use `getMessages()` instead */
-
-  const { data: _messages } = useGetMessagesByConvoId(queryParam, {
-    enabled: isAuthenticated,
-  });
 
   const resetLatestMessage = useResetRecoilState(store.latestMessageFamily(index));
   const [isSubmitting, setIsSubmitting] = useRecoilState(store.isSubmittingFamily(index));
@@ -180,37 +172,34 @@ export default function useChatHelpers(index = 0, paramId?: string) {
   const [optionSettings, setOptionSettings] = useRecoilState(store.optionSettingsFamily(index));
 
   return {
-    newConversation,
-    conversation,
-    setConversation,
-    // getConvos,
-    // setConvos,
-    isSubmitting,
-    setIsSubmitting,
-    getMessages,
-    setMessages,
-    setSiblingIdx,
-    latestMessage,
-    setLatestMessage,
-    resetLatestMessage,
     ask,
     index,
+    files,
+    preset,
+    setFiles,
     regenerate,
+    filesLoading,
+    abortScroll,
+    getMessages,
+    showPopover,
+    setMessages,
+    conversation,
+    latestMessage,
+    optionSettings,
+    isSubmitting,
+    handleContinue,
+    setPreset,
+    setOptionSettings,
+    handleRegenerate,
+    setShowPopover,
+    setAbortScroll,
+    setConversation,
+    setIsSubmitting,
+    setFilesLoading,
+    newConversation,
+    resetLatestMessage,
+    setLatestMessage,
     stopGenerating,
     handleStopGenerating,
-    handleRegenerate,
-    handleContinue,
-    showPopover,
-    setShowPopover,
-    abortScroll,
-    setAbortScroll,
-    preset,
-    setPreset,
-    optionSettings,
-    setOptionSettings,
-    files,
-    setFiles,
-    filesLoading,
-    setFilesLoading,
   };
 }

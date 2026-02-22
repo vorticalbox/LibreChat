@@ -10,6 +10,7 @@ const {
   createSafeUser,
   mcpToolPattern,
   loadWebSearchAuth,
+  createJinaSearchTool,
   buildImageToolContext,
   buildWebSearchContext,
 } = require('@librechat/api');
@@ -326,6 +327,14 @@ const loadTools = async ({
       const { onSearchResults, onGetHighlights } = options?.[Tools.web_search] ?? {};
       requestedTools[tool] = async () => {
         toolContextMap[tool] = buildWebSearchContext();
+        if (result.authResult.searchProvider === 'jina') {
+          return createJinaSearchTool({
+            ...result.authResult,
+            onSearchResults,
+            onGetHighlights,
+            logger,
+          });
+        }
         return createSearchTool({
           ...result.authResult,
           onSearchResults,

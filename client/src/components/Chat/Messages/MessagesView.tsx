@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAtomValue } from 'jotai';
 import { useRecoilValue } from 'recoil';
 import { CSSTransition } from 'react-transition-group';
@@ -11,17 +11,26 @@ import MultiMessage from './MultiMessage';
 import { cn } from '~/utils';
 import store from '~/store';
 
+interface MessagesViewProps {
+  messagesTree?: TMessage[] | null;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+}
+
 function MessagesViewContent({
   messagesTree: _messagesTree,
-}: {
-  messagesTree?: TMessage[] | null;
-}) {
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+}: MessagesViewProps) {
   const localize = useLocalize();
   const fontSize = useAtomValue(fontSizeAtom);
   const { screenshotTargetRef } = useScreenshot();
   const scrollButtonPreference = useRecoilValue(store.showScrollButton);
   const [currentEditId, setCurrentEditId] = useState<number | string | null>(-1);
   const scrollToBottomRef = useRef<HTMLButtonElement>(null);
+  const loadingOlderRef = useRef(false);
 
   const {
     conversation,
@@ -34,13 +43,53 @@ function MessagesViewContent({
 
   const { conversationId } = conversation ?? {};
 
+  const loadMoreIfNeeded = useCallback(() => {
+    const container = scrollableRef.current;
+    if (
+      !container ||
+      !onLoadMore ||
+      !hasMore ||
+      isLoadingMore ||
+      loadingOlderRef.current ||
+      container.scrollTop > 120
+    ) {
+      return;
+    }
+
+    loadingOlderRef.current = true;
+    const previousScrollHeight = container.scrollHeight;
+    const previousScrollTop = container.scrollTop;
+
+    void onLoadMore()
+      .then(() => {
+        requestAnimationFrame(() => {
+          const currentContainer = scrollableRef.current;
+          if (!currentContainer) {
+            return;
+          }
+
+          const nextScrollHeight = currentContainer.scrollHeight;
+          currentContainer.scrollTop =
+            previousScrollTop + (nextScrollHeight - previousScrollHeight);
+        });
+      })
+      .finally(() => {
+        loadingOlderRef.current = false;
+      });
+  }, [hasMore, isLoadingMore, onLoadMore, scrollableRef]);
+
+  const handleScroll = useCallback(() => {
+    debouncedHandleScroll();
+    loadMoreIfNeeded();
+  }, [debouncedHandleScroll, loadMoreIfNeeded]);
+
   return (
     <>
       <div className="relative flex-1 overflow-hidden overflow-y-auto">
         <div className="relative h-full">
           <div
             className="scrollbar-gutter-stable"
-            onScroll={debouncedHandleScroll}
+            onScroll={handleScroll}
             ref={scrollableRef}
             style={{
               height: '100%',
@@ -98,10 +147,20 @@ function MessagesViewContent({
   );
 }
 
-export default function MessagesView({ messagesTree }: { messagesTree?: TMessage[] | null }) {
+export default function MessagesView({
+  messagesTree,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
+}: MessagesViewProps) {
   return (
     <MessagesViewProvider>
-      <MessagesViewContent messagesTree={messagesTree} />
+      <MessagesViewContent
+        messagesTree={messagesTree}
+        onLoadMore={onLoadMore}
+        hasMore={hasMore}
+        isLoadingMore={isLoadingMore}
+      />
     </MessagesViewProvider>
   );
 }

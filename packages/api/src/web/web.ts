@@ -2,13 +2,13 @@ import {
   AuthType,
   SafeSearchTypes,
   SearchCategories,
+  SearchProviders,
   extractVariableName,
 } from 'librechat-data-provider';
 import { webSearchAuth } from '@librechat/data-schemas';
 import type {
   RerankerTypes,
   TCustomConfig,
-  SearchProviders,
   ScraperProviders,
   TWebSearchConfig,
 } from 'librechat-data-provider';
@@ -81,6 +81,15 @@ export async function loadWebSearchAuth({
   async function checkAuth<C extends TWebSearchCategories>(
     category: C,
   ): Promise<[boolean, boolean]> {
+    const resolvedSearchProvider = (webSearchConfig?.searchProvider ??
+      authResult.searchProvider) as SearchProviders | undefined;
+    if (
+      resolvedSearchProvider === SearchProviders.JINA &&
+      (category === SearchCategories.SCRAPERS || category === SearchCategories.RERANKERS)
+    ) {
+      return [true, false];
+    }
+
     type ServiceType = keyof (typeof webSearchAuth)[C];
     let isUserProvided = false;
 

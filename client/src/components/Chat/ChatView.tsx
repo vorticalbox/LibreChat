@@ -36,7 +36,13 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   const fileMap = useFileMapContext();
 
-  const { data: messagesTree = null, isLoading } = useGetMessagesByConvoId(conversationId ?? '', {
+  const {
+    data: messagesTree = null,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useGetMessagesByConvoId(conversationId ?? '', {
     select: useCallback(
       (data: TMessage[]) => {
         const dataTree = buildTree({ messages: data, fileMap });
@@ -46,6 +52,10 @@ function ChatView({ index = 0 }: { index?: number }) {
     ),
     enabled: !!fileMap,
   });
+
+  const loadMoreMessages = useCallback(async () => {
+    await fetchNextPage();
+  }, [fetchNextPage]);
 
   const chatHelpers = useChatHelpers(index, conversationId);
   const addedChatHelpers = useAddedResponse();
@@ -71,7 +81,14 @@ function ChatView({ index = 0 }: { index?: number }) {
   } else if ((isLoading || isNavigating) && !isLandingPage) {
     content = <LoadingSpinner />;
   } else if (!isLandingPage) {
-    content = <MessagesView messagesTree={messagesTree} />;
+    content = (
+      <MessagesView
+        messagesTree={messagesTree}
+        onLoadMore={loadMoreMessages}
+        hasMore={Boolean(hasNextPage)}
+        isLoadingMore={isFetchingNextPage}
+      />
+    );
   } else {
     content = <Landing centerFormOnLanding={centerFormOnLanding} />;
   }

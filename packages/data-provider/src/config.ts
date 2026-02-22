@@ -831,6 +831,7 @@ export enum SearchCategories {
 export enum SearchProviders {
   SERPER = 'serper',
   SEARXNG = 'searxng',
+  JINA = 'jina',
 }
 
 export enum ScraperProviders {
