@@ -19,6 +19,7 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
   const { setAbortScroll, isSubmitting, abortScroll } = useMessagesSubmission();
 
   const timeoutIdRef = useRef<NodeJS.Timeout>();
+  const scrolledOnLoadConversationIdRef = useRef<string | null>(null);
 
   const debouncedSetShowScrollButton = useCallback((value: boolean) => {
     clearTimeout(timeoutIdRef.current);
@@ -90,6 +91,28 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
       }
     };
   }, [isSubmitting, messagesTree, scrollToBottom, abortScroll]);
+
+  useEffect(() => {
+    if (!conversationId || conversationId === Constants.NEW_CONVO) {
+      scrolledOnLoadConversationIdRef.current = null;
+      return;
+    }
+
+    if (scrolledOnLoadConversationIdRef.current === conversationId) {
+      return;
+    }
+
+    if (!messagesTree || messagesTree.length === 0) {
+      return;
+    }
+
+    if (!messagesEndRef.current || !scrollableRef.current || !scrollToBottom) {
+      return;
+    }
+
+    scrolledOnLoadConversationIdRef.current = conversationId;
+    requestAnimationFrame(() => scrollToBottom());
+  }, [conversationId, messagesTree, scrollToBottom]);
 
   useEffect(() => {
     if (!messagesEndRef.current || !scrollableRef.current) {
