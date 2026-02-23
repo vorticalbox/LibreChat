@@ -176,7 +176,7 @@ Execute the intention of the prompt that is mentioned in the message using the t
     `;
   }
 
-  logger.debug('MCP-UI', 'About to submit message:', messageText);
+  logger.debug('UI', 'About to submit message:', messageText);
   ask({ text: messageText });
-  logger.debug('MCP-UI', 'Message submitted successfully');
+  logger.debug('UI', 'Message submitted successfully');
 };

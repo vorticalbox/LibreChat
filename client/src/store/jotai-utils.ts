@@ -49,7 +49,7 @@ export function createStorageAtomWithEffect<T>(
  * for atoms where each tab should maintain independent state.
  *
  * Use this for atoms that represent per-tab working state (e.g., favorites toggle,
- * MCP server selections) rather than user preferences.
+ * tool selections) rather than user preferences.
  */
 export function createTabIsolatedStorage<Value>(): SyncStorage<Value> {
   return {

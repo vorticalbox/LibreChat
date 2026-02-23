@@ -12,7 +12,7 @@ This fork is tuned for low-memory self-hosting on Raspberry Pi hardware.
 
 ## Added
 
-- Jina web search is enabled in runtime config (`webSearch.searchProvider: jina`).
+- Jina web search provider support (configure `webSearch.searchProvider: jina` + `JINA_API_KEY`).
 - Proactive cross-chat memory capture is enabled (`memory.autoCapture: true`) so durable user facts are checked and saved each turn.
 - Memory context is now consistently included for the agent run path, even when memory is currently empty.
 - Agent attachment handling now supports `file_id`, `temp_file_id`, and `filepath` fallback matching to keep message files attached reliably.
@@ -22,6 +22,8 @@ This fork is tuned for low-memory self-hosting on Raspberry Pi hardware.
 - Initial conversation load is limited to the latest 10 messages.
 - Older messages are loaded on scroll.
 - Frontend message-cache hardening to prevent `messageId` undefined crashes during streaming/finalization on long chats.
+- Message listing URL fix: pagination uses `GET /api/messages?conversationId=...` so infinite scroll works reliably.
+- The right-side controls panel can no longer be permanently hidden via settings (to prevent getting locked out of Agents/Prompts/Memories).
 - API-only Docker defaults for this low-memory target.
 
 ## Removed or Disabled (Deployment)
@@ -29,6 +31,8 @@ This fork is tuned for low-memory self-hosting on Raspberry Pi hardware.
 - Removed side-service containers from default runtime in `docker-compose.yml` for this setup.
 - Disabled local search path at runtime via `SEARCH=false`.
 - Uses external MongoDB Atlas instead of a local Mongo container.
+- MCP is removed (frontend UI + backend mounts/entrypoints) to reduce footprint and avoid MCP init/runtime failures.
+- WebSearch rerankers are removed (Jina is used directly as the search provider).
 - RAG/vector features are still present in source, but not enabled in this deployment profile.
 
 ## Deployment Files Used

@@ -16,13 +16,9 @@ interface PublicSharingToggleProps {
   className?: string;
 }
 
-const accessDescriptions: Record<
-  ResourceType,
-  'com_ui_agent' | 'com_ui_prompt' | 'com_ui_mcp_server'
-> = {
+const accessDescriptions: Partial<Record<ResourceType, 'com_ui_agent' | 'com_ui_prompt'>> = {
   [ResourceType.AGENT]: 'com_ui_agent',
   [ResourceType.PROMPTGROUP]: 'com_ui_prompt',
-  [ResourceType.MCPSERVER]: 'com_ui_mcp_server',
 };
 
 export default function PublicSharingToggle({
@@ -67,7 +63,9 @@ export default function PublicSharingToggle({
                 side={ESide.Top}
                 text={localize('com_ui_share_everyone_description_var', {
                   resource:
-                    localize(accessDescriptions[resourceType]) || localize('com_ui_resource'),
+                    accessDescriptions[resourceType] != null
+                      ? localize(accessDescriptions[resourceType] as 'com_ui_agent' | 'com_ui_prompt')
+                      : localize('com_ui_resource'),
                 })}
               />
             </div>

@@ -12,8 +12,6 @@ import {
 } from 'librechat-data-provider';
 import { useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
-import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
-import { useGetStartupConfig } from '~/data-provider';
 import { useBadgeRowContext } from '~/Providers';
 import { cn } from '~/utils';
 
@@ -30,12 +28,10 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     artifacts,
     fileSearch,
     agentsConfig,
-    mcpServerManager,
     codeApiKeyForm,
     codeInterpreter,
     searchApiKeyForm,
   } = useBadgeRowContext();
-  const { data: startupConfig } = useGetStartupConfig();
 
   const { codeEnabled, webSearchEnabled, artifactsEnabled, fileSearchEnabled } =
     useAgentCapabilities(agentsConfig?.capabilities ?? defaultAgentCapabilities);
@@ -69,11 +65,6 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
 
   const canUseFileSearch = useHasAccess({
     permissionType: PermissionTypes.FILE_SEARCH,
-    permission: Permissions.USE,
-  });
-
-  const canUseMcp = useHasAccess({
-    permissionType: PermissionTypes.MCP_SERVERS,
     permission: Permissions.USE,
   });
 
@@ -129,9 +120,6 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
       artifacts.debouncedChange({ value: ArtifactModes.CUSTOM });
     }
   }, [artifacts]);
-
-  const mcpPlaceholder = startupConfig?.interface?.mcpServers?.placeholder;
-
   const dropdownItems: MenuItemProps[] = [];
 
   if (fileSearchEnabled && canUseFileSearch) {
@@ -288,14 +276,6 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
           handleCustomToggle={handleCustomToggle}
         />
       ),
-    });
-  }
-
-  const { availableMCPServers } = mcpServerManager;
-  if (canUseMcp && availableMCPServers && availableMCPServers.length > 0) {
-    dropdownItems.push({
-      hideOnClick: false,
-      render: (props) => <MCPSubMenu {...props} placeholder={mcpPlaceholder} />,
     });
   }
 

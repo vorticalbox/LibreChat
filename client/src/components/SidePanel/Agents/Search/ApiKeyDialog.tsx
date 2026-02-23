@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button, OGDialog, OGDialogTemplate } from '@librechat/client';
 import {
   AuthType,
-  RerankerTypes,
   SearchProviders,
   ScraperProviders,
   SearchCategories,
@@ -42,9 +41,6 @@ export default function ApiKeyDialog({
   const [selectedProvider, setSelectedProvider] = useState(
     config?.webSearch?.searchProvider || SearchProviders.SERPER,
   );
-  const [selectedReranker, setSelectedReranker] = useState(
-    config?.webSearch?.rerankerType || RerankerTypes.JINA,
-  );
   const [selectedScraper, setSelectedScraper] = useState(
     config?.webSearch?.scraperProvider || ScraperProviders.FIRECRAWL,
   );
@@ -78,41 +74,24 @@ export default function ApiKeyDialog({
         },
       },
     },
-  ];
-
-  const rerankerOptions: DropdownOption[] = [
     {
-      key: RerankerTypes.JINA,
-      label: localize('com_ui_web_search_reranker_jina'),
+      key: SearchProviders.JINA,
+      label: localize('com_ui_web_search_provider_jina'),
       inputs: {
         jinaApiKey: {
           placeholder: localize('com_ui_web_search_jina_key'),
           type: 'password' as const,
           link: {
             url: 'https://jina.ai/api-dashboard/',
-            text: localize('com_ui_web_search_reranker_jina_key'),
+            text: localize('com_ui_web_search_provider_jina_key'),
           },
         },
         jinaApiUrl: {
           placeholder: localize('com_ui_web_search_jina_url'),
           type: 'text' as const,
           link: {
-            url: 'https://api.jina.ai/v1/rerank',
-            text: localize('com_ui_web_search_reranker_jina_url_help'),
-          },
-        },
-      },
-    },
-    {
-      key: RerankerTypes.COHERE,
-      label: localize('com_ui_web_search_reranker_cohere'),
-      inputs: {
-        cohereApiKey: {
-          placeholder: localize('com_ui_web_search_cohere_key'),
-          type: 'password' as const,
-          link: {
-            url: 'https://dashboard.cohere.com/welcome/login',
-            text: localize('com_ui_web_search_reranker_cohere_key'),
+            url: 'https://s.jina.ai/',
+            text: localize('com_ui_web_search_provider_jina_url_help'),
           },
         },
       },
@@ -156,20 +135,14 @@ export default function ApiKeyDialog({
 
   const [dropdownOpen, setDropdownOpen] = useState({
     provider: false,
-    reranker: false,
     scraper: false,
   });
 
   const providerAuthType = authTypes.find(([cat]) => cat === SearchCategories.PROVIDERS)?.[1];
   const scraperAuthType = authTypes.find(([cat]) => cat === SearchCategories.SCRAPERS)?.[1];
-  const rerankerAuthType = authTypes.find(([cat]) => cat === SearchCategories.RERANKERS)?.[1];
 
   const handleProviderChange = (key: string) => {
     setSelectedProvider(key as SearchProviders);
-  };
-
-  const handleRerankerChange = (key: string) => {
-    setSelectedReranker(key as RerankerTypes);
   };
 
   const handleScraperChange = (key: string) => {
@@ -221,23 +194,6 @@ export default function ApiKeyDialog({
                     setDropdownOpen((prev) => ({ ...prev, scraper: open }))
                   }
                   dropdownKey="scraper"
-                />
-              )}
-
-              {/* Reranker Section */}
-              {rerankerAuthType !== AuthType.SYSTEM_DEFINED && (
-                <InputSection
-                  title={localize('com_ui_web_search_reranker')}
-                  selectedKey={selectedReranker}
-                  onSelectionChange={handleRerankerChange}
-                  dropdownOptions={rerankerOptions}
-                  showDropdown={!config?.webSearch?.rerankerType}
-                  register={register}
-                  dropdownOpen={dropdownOpen.reranker}
-                  setDropdownOpen={(open) =>
-                    setDropdownOpen((prev) => ({ ...prev, reranker: open }))
-                  }
-                  dropdownKey="reranker"
                 />
               )}
             </form>

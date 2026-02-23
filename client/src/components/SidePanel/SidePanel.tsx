@@ -72,18 +72,8 @@ const SidePanel = ({
     [keyExpiry.expiresAt, userProvidesKey],
   );
 
-  const hidePanel = useCallback(() => {
-    setIsCollapsed(true);
-    setCollapsedSize(0);
-    setMinSize(defaultMinSize);
-    setFullCollapse(true);
-    localStorage.setItem('fullPanelCollapse', 'true');
-    panelRef.current?.collapse();
-  }, [panelRef, setMinSize, setIsCollapsed, setFullCollapse, setCollapsedSize]);
-
   const Links = useSideNavLinks({
     endpoint,
-    hidePanel,
     keyProvided,
     endpointType,
     interfaceConfig,

@@ -222,7 +222,6 @@ export function applyModelSpecEphemeralAgent({
   }
   const key = (convoId ?? Constants.NEW_CONVO) || Constants.NEW_CONVO;
   const agent: t.TEphemeralAgent = {
-    mcp: modelSpec.mcpServers ?? [],
     web_search: modelSpec.webSearch ?? false,
     file_search: modelSpec.fileSearch ?? false,
     execute_code: modelSpec.executeCode ?? false,
@@ -248,18 +247,6 @@ export function applyModelSpecEphemeralAgent({
         } catch {
           // ignore parse errors
         }
-      }
-    }
-
-    const mcpRaw = localStorage.getItem(`${LocalStorageKeys.LAST_MCP_}${key}`);
-    if (mcpRaw !== null) {
-      try {
-        const parsed = JSON.parse(mcpRaw);
-        if (Array.isArray(parsed)) {
-          agent.mcp = parsed;
-        }
-      } catch {
-        // ignore parse errors
       }
     }
   }

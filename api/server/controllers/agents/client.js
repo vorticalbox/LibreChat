@@ -50,7 +50,6 @@ const { getConvoFiles } = require('~/models/Conversation');
 const BaseClient = require('~/app/clients/BaseClient');
 const { getRoleByName } = require('~/models/Role');
 const { loadAgent } = require('~/models/Agent');
-const { getMCPManager } = require('~/config');
 const db = require('~/models');
 
 class AgentClient extends BaseClient {
@@ -346,14 +345,12 @@ class AgentClient extends BaseClient {
      * holds references to config objects that will be passed to the graph runtime.
      */
     const ephemeralAgent = this.options.req.body.ephemeralAgent;
-    const mcpManager = getMCPManager();
     await Promise.all(
       allAgents.map(({ agent, agentId }) =>
         applyContextToAgent({
           agent,
           agentId,
           logger,
-          mcpManager,
           sharedRunContext,
           ephemeralAgent: agentId === this.options.agent.id ? ephemeralAgent : undefined,
         }),

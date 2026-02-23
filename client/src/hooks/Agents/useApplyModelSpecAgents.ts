@@ -27,7 +27,7 @@ export function useApplyModelSpecEffects() {
       if (specName == null || !specName) {
         if (startupConfig?.modelSpecs?.list?.length) {
           /** Specs are configured but none selected — reset ephemeral agent to null
-           *  so BadgeRowContext fills all values (tool toggles + MCP) from localStorage. */
+           *  so BadgeRowContext fills values (tool toggles) from localStorage. */
           updateEphemeralAgent((convoId ?? Constants.NEW_CONVO) || Constants.NEW_CONVO, null);
         }
         return;
@@ -86,7 +86,6 @@ export function useApplyAgentTemplate() {
 
       const mergedAgent = {
         ...ephemeralAgent,
-        mcp: [...(ephemeralAgent?.mcp ?? []), ...(modelSpec.mcpServers ?? [])],
         web_search: ephemeralAgent?.web_search ?? modelSpec.webSearch ?? false,
         file_search: ephemeralAgent?.file_search ?? modelSpec.fileSearch ?? false,
         execute_code: ephemeralAgent?.execute_code ?? modelSpec.executeCode ?? false,
@@ -94,8 +93,6 @@ export function useApplyAgentTemplate() {
           ephemeralAgent?.artifacts ??
           (modelSpec.artifacts === true ? 'default' : modelSpec.artifacts || ''),
       };
-
-      mergedAgent.mcp = [...new Set(mergedAgent.mcp)];
 
       applyAgentTemplate(targetId, sourceId, mergedAgent);
     },

@@ -12,7 +12,7 @@ export interface ResourceConfig {
   getCopyUrlMessage: () => string;
 }
 
-export const RESOURCE_CONFIGS: Record<ResourceType, ResourceConfig> = {
+export const RESOURCE_CONFIGS: Partial<Record<ResourceType, ResourceConfig>> = {
   [ResourceType.AGENT]: {
     resourceType: ResourceType.AGENT,
     defaultViewerRoleId: AccessRoleIds.AGENT_VIEWER,
@@ -35,17 +35,6 @@ export const RESOURCE_CONFIGS: Record<ResourceType, ResourceConfig> = {
     getManageMessage: (name?: string) =>
       `Manage permissions for ${name && name !== '' ? name : 'prompt'}`,
     getCopyUrlMessage: () => 'Prompt URL copied',
-  },
-  [ResourceType.MCPSERVER]: {
-    resourceType: ResourceType.MCPSERVER,
-    defaultViewerRoleId: AccessRoleIds.MCPSERVER_VIEWER,
-    defaultEditorRoleId: AccessRoleIds.MCPSERVER_EDITOR,
-    defaultOwnerRoleId: AccessRoleIds.MCPSERVER_OWNER,
-    getResourceName: (name?: string) => (name && name !== '' ? name : 'MCP server'),
-    getShareMessage: (name?: string) => (name && name !== '' ? name : 'MCP server'),
-    getManageMessage: (name?: string) =>
-      `Manage permissions for ${name && name !== '' ? name : 'MCP server'}`,
-    getCopyUrlMessage: () => 'MCP Server URL copied',
   },
   [ResourceType.REMOTE_AGENT]: {
     resourceType: ResourceType.REMOTE_AGENT,

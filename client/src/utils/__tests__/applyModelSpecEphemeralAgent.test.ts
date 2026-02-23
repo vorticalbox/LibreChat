@@ -18,7 +18,6 @@ const createModelSpec = (overrides: Partial<TModelSpec> = {}): TModelSpec =>
     name: 'test-spec',
     label: 'Test Spec',
     preset: { endpoint: 'agents' },
-    mcpServers: ['spec-server1'],
     webSearch: true,
     executeCode: true,
     fileSearch: false,
@@ -44,9 +43,8 @@ describe('applyModelSpecEphemeralAgent', () => {
   // ─── New Conversations ─────────────────────────────────────────────
 
   describe('new conversations always get fresh admin spec config', () => {
-    it('should apply exactly the admin-configured tools and MCP servers', () => {
+    it('should apply exactly the admin-configured tools', () => {
       const modelSpec = createModelSpec({
-        mcpServers: ['clickhouse', 'github'],
         executeCode: true,
         webSearch: false,
         fileSearch: true,
@@ -60,7 +58,6 @@ describe('applyModelSpecEphemeralAgent', () => {
       });
 
       expect(updateEphemeralAgent).toHaveBeenCalledWith(Constants.NEW_CONVO, {
-        mcp: ['clickhouse', 'github'],
         execute_code: true,
         web_search: false,
         file_search: true,
@@ -72,12 +69,8 @@ describe('applyModelSpecEphemeralAgent', () => {
       // Simulate stale localStorage from a previous session
       writeToolToggle(LocalStorageKeys.LAST_CODE_TOGGLE_, Constants.NEW_CONVO, false);
       writeToolToggle(LocalStorageKeys.LAST_WEB_SEARCH_TOGGLE_, Constants.NEW_CONVO, true);
-      localStorage.setItem(
-        `${LocalStorageKeys.LAST_MCP_}${Constants.NEW_CONVO}`,
-        JSON.stringify(['stale-server']),
-      );
 
-      const modelSpec = createModelSpec({ executeCode: true, webSearch: false, mcpServers: [] });
+      const modelSpec = createModelSpec({ executeCode: true, webSearch: false });
 
       applyModelSpecEphemeralAgent({
         convoId: null,
@@ -89,16 +82,6 @@ describe('applyModelSpecEphemeralAgent', () => {
       // Should be spec values, NOT localStorage values
       expect(agent.execute_code).toBe(true);
       expect(agent.web_search).toBe(false);
-      expect(agent.mcp).toEqual([]);
-    });
-
-    it('should handle spec with no MCP servers', () => {
-      const modelSpec = createModelSpec({ mcpServers: undefined });
-
-      applyModelSpecEphemeralAgent({ convoId: null, modelSpec, updateEphemeralAgent });
-
-      const agent = updateEphemeralAgent.mock.calls[0][1] as TEphemeralAgent;
-      expect(agent.mcp).toEqual([]);
     });
 
     it('should map artifacts: true to "default" string', () => {
@@ -111,7 +94,9 @@ describe('applyModelSpecEphemeralAgent', () => {
     });
 
     it('should pass through artifacts string value directly', () => {
-      const modelSpec = createModelSpec({ artifacts: 'custom-renderer' as any });
+      const modelSpec = createModelSpec({
+        artifacts: 'custom-renderer' as unknown as TModelSpec['artifacts'],
+      });
 
       applyModelSpecEphemeralAgent({ convoId: null, modelSpec, updateEphemeralAgent });
 
@@ -144,33 +129,6 @@ describe('applyModelSpecEphemeralAgent', () => {
       expect(agent.web_search).toBe(true); // not overridden, spec value
     });
 
-    it('should preserve user-added MCP servers across navigation', () => {
-      // Spec has clickhouse, user also added github during the conversation
-      localStorage.setItem(
-        `${LocalStorageKeys.LAST_MCP_}${convoId}`,
-        JSON.stringify(['clickhouse', 'github']),
-      );
-
-      const modelSpec = createModelSpec({ mcpServers: ['clickhouse'] });
-
-      applyModelSpecEphemeralAgent({ convoId, modelSpec, updateEphemeralAgent });
-
-      const agent = updateEphemeralAgent.mock.calls[0][1] as TEphemeralAgent;
-      expect(agent.mcp).toEqual(['clickhouse', 'github']);
-    });
-
-    it('should preserve user-removed MCP servers (empty array) across navigation', () => {
-      // User removed all MCP servers during the conversation
-      localStorage.setItem(`${LocalStorageKeys.LAST_MCP_}${convoId}`, JSON.stringify([]));
-
-      const modelSpec = createModelSpec({ mcpServers: ['clickhouse', 'github'] });
-
-      applyModelSpecEphemeralAgent({ convoId, modelSpec, updateEphemeralAgent });
-
-      const agent = updateEphemeralAgent.mock.calls[0][1] as TEphemeralAgent;
-      expect(agent.mcp).toEqual([]);
-    });
-
     it('should only override keys that exist in localStorage, leaving the rest as spec defaults', () => {
       // User only changed artifacts, nothing else
       writeToolToggle(LocalStorageKeys.LAST_ARTIFACTS_TOGGLE_, convoId, '');
@@ -180,7 +138,6 @@ describe('applyModelSpecEphemeralAgent', () => {
         webSearch: true,
         fileSearch: false,
         artifacts: true,
-        mcpServers: ['server1'],
       });
 
       applyModelSpecEphemeralAgent({ convoId, modelSpec, updateEphemeralAgent });
@@ -190,7 +147,6 @@ describe('applyModelSpecEphemeralAgent', () => {
       expect(agent.web_search).toBe(true); // spec default
       expect(agent.file_search).toBe(false); // spec default
       expect(agent.artifacts).toBe(''); // user override
-      expect(agent.mcp).toEqual(['server1']); // spec default (not in localStorage)
     });
   });
 
@@ -207,13 +163,11 @@ describe('applyModelSpecEphemeralAgent', () => {
         webSearch: false,
         fileSearch: true,
         artifacts: true,
-        mcpServers: ['server1', 'server2'],
       });
 
       applyModelSpecEphemeralAgent({ convoId, modelSpec, updateEphemeralAgent });
 
       expect(updateEphemeralAgent).toHaveBeenCalledWith(convoId, {
-        mcp: ['server1', 'server2'],
         execute_code: true,
         web_search: false,
         file_search: true,

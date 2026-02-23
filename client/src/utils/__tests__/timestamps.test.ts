@@ -90,7 +90,7 @@ describe('timestamps', () => {
 
   describe('cleanupTimestampedStorage', () => {
     it('should remove entries without timestamps', () => {
-      const key = `${LocalStorageKeys.LAST_MCP_}convo-123`;
+      const key = `${LocalStorageKeys.LAST_CODE_TOGGLE_}convo-123`;
       localStorage.setItem(key, 'value');
 
       cleanupTimestampedStorage();
@@ -136,10 +136,10 @@ describe('timestamps', () => {
 
   describe('migrateExistingEntries', () => {
     it('should add timestamps to existing timestamped keys', () => {
-      const key1 = `${LocalStorageKeys.LAST_MCP_}convo-111`;
-      const key2 = `${LocalStorageKeys.PIN_MCP_}convo-222`;
+      const key1 = `${LocalStorageKeys.LAST_CODE_TOGGLE_}convo-111`;
+      const key2 = `${LocalStorageKeys.LAST_WEB_SEARCH_TOGGLE_}convo-222`;
 
-      localStorage.setItem(key1, '["mcp1", "mcp2"]');
+      localStorage.setItem(key1, 'true');
       localStorage.setItem(key2, 'true');
 
       migrateExistingEntries();

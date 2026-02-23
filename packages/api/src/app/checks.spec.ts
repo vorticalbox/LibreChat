@@ -80,17 +80,17 @@ describe('checkWebSearchConfig', () => {
 
     it('should log debug message for environment variables not set in environment', () => {
       const config = {
-        cohereApiKey: '${COHERE_API_KEY}',
+        jinaApiKey: '${JINA_API_KEY}',
       };
 
-      extractVariableName.mockReturnValue('COHERE_API_KEY');
+      extractVariableName.mockReturnValue('JINA_API_KEY');
 
-      delete process.env.COHERE_API_KEY;
+      delete process.env.JINA_API_KEY;
 
       checkWebSearchConfig(config);
 
       expect(logger.debug).toHaveBeenCalledWith(
-        'Web search cohereApiKey: Using environment variable COHERE_API_KEY (not set in environment, user provided value)',
+        'Web search jinaApiKey: Using environment variable JINA_API_KEY (not set in environment, user provided value)',
       );
       expect(logger.warn).not.toHaveBeenCalled();
     });

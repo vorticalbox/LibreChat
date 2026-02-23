@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useRecoilState } from 'recoil';
 import { useOutletContext } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
@@ -17,7 +16,6 @@ import { cn, clearMessagesCache } from '~/utils';
 import CategoryTabs from './CategoryTabs';
 import SearchBar from './SearchBar';
 import AgentGrid from './AgentGrid';
-import store from '~/store';
 
 interface AgentMarketplaceProps {
   className?: string;
@@ -40,7 +38,6 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const { navVisible, setNavVisible } = useOutletContext<ContextType>();
-  const [hideSidePanel, setHideSidePanel] = useRecoilState(store.hideSidePanel);
 
   // Get URL parameters
   const searchQuery = searchParams.get('q') || '';
@@ -59,14 +56,7 @@ const AgentMarketplace: React.FC<AgentMarketplaceProps> = ({ className = '' }) =
   // Set page title
   useDocumentTitle(`${localize('com_agents_marketplace')} | LibreChat`);
 
-  // Ensure right sidebar is always visible in marketplace
-  useEffect(() => {
-    setHideSidePanel(false);
-
-    // Also try to force expand via localStorage
-    localStorage.setItem('hideSidePanel', 'false');
-    localStorage.setItem('fullPanelCollapse', 'false');
-  }, [setHideSidePanel, hideSidePanel]);
+  // Side panel is always enabled in this fork (hide toggle removed).
 
   // Ensure endpoints config is loaded first (required for agent queries)
   useGetEndpointsQuery();

@@ -25,10 +25,8 @@ const tags = require('./tags');
 const auth = require('./auth');
 const keys = require('./keys');
 const user = require('./user');
-const mcp = require('./mcp');
 
 module.exports = {
-  mcp,
   auth,
   adminAuth,
   keys,

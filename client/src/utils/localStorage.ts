@@ -31,7 +31,6 @@ export function clearLocalStorage(skipFirst?: boolean) {
       return;
     }
     if (
-      key.startsWith(LocalStorageKeys.LAST_MCP_) ||
       key.startsWith(LocalStorageKeys.LAST_CODE_TOGGLE_) ||
       key.startsWith(LocalStorageKeys.ASST_ID_PREFIX) ||
       key.startsWith(LocalStorageKeys.AGENT_ID_PREFIX) ||
@@ -67,7 +66,6 @@ export function clearAllConversationStorage() {
   const keys = Object.keys(localStorage);
   keys.forEach((key) => {
     if (
-      key.startsWith(LocalStorageKeys.LAST_MCP_) ||
       key.startsWith(LocalStorageKeys.LAST_CODE_TOGGLE_) ||
       key.startsWith(LocalStorageKeys.TEXT_DRAFT) ||
       key.startsWith(LocalStorageKeys.ASST_ID_PREFIX) ||

@@ -11,7 +11,7 @@ import {
   getIconKey,
   cn,
 } from '~/utils';
-import { ToolSelectDialog, MCPToolSelectDialog } from '~/components/Tools';
+import { ToolSelectDialog } from '~/components/Tools';
 import useAgentCapabilities from '~/hooks/Agents/useAgentCapabilities';
 import { useFileMapContext, useAgentPanelContext } from '~/Providers';
 import AgentCategorySelector from './AgentCategorySelector';
@@ -28,7 +28,6 @@ import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
 import AgentTool from './AgentTool';
 import CodeForm from './Code/Form';
-import MCPTools from './MCPTools';
 
 const labelClass = 'mb-2 text-token-text-primary block font-medium';
 const inputClass = cn(
@@ -43,14 +42,11 @@ export default function AgentConfig() {
   const { showToast } = useToastContext();
   const methods = useFormContext<AgentForm>();
   const [showToolDialog, setShowToolDialog] = useState(false);
-  const [showMCPToolDialog, setShowMCPToolDialog] = useState(false);
   const {
     actions,
     setAction,
     regularTools,
     agentsConfig,
-    availableMCPServers,
-    mcpServersMap,
     setActivePanel,
     endpointsConfig,
   } = useAgentPanelContext();
@@ -176,7 +172,7 @@ export default function AgentConfig() {
     Icon = icons[iconKey];
   }
 
-  const { toolIds, mcpServerNames } = useVisibleTools(tools, regularTools, mcpServersMap);
+  const { toolIds } = useVisibleTools(tools, regularTools);
 
   return (
     <>
@@ -305,15 +301,6 @@ export default function AgentConfig() {
             {fileSearchEnabled && <FileSearch agent_id={agent_id} files={knowledge_files} />}
           </div>
         )}
-        {/* MCP Section */}
-        {availableMCPServers != null && availableMCPServers.length > 0 && (
-          <MCPTools
-            agentId={agent_id}
-            mcpServerNames={mcpServerNames}
-            setShowMCPToolDialog={setShowMCPToolDialog}
-          />
-        )}
-
         {/* Agent Tools & Actions */}
         <div className="mb-4">
           <label className={labelClass}>
@@ -493,15 +480,6 @@ export default function AgentConfig() {
         setIsOpen={setShowToolDialog}
         endpoint={EModelEndpoint.agents}
       />
-      {availableMCPServers != null && availableMCPServers.length > 0 && (
-        <MCPToolSelectDialog
-          agentId={agent_id}
-          isOpen={showMCPToolDialog}
-          mcpServerNames={mcpServerNames}
-          setIsOpen={setShowMCPToolDialog}
-          endpoint={EModelEndpoint.agents}
-        />
-      )}
     </>
   );
 }

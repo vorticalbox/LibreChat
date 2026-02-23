@@ -19,7 +19,6 @@ import { useChatBadges } from '~/hooks';
 import ToolDialogs from './ToolDialogs';
 import FileSearch from './FileSearch';
 import Artifacts from './Artifacts';
-import MCPSelect from './MCPSelect';
 import WebSearch from './WebSearch';
 import store from '~/store';
 
@@ -374,7 +373,6 @@ function BadgeRow({
             <CodeInterpreter />
             <FileSearch />
             <Artifacts />
-            <MCPSelect />
           </>
         )}
         {ghostBadge && (

@@ -41,18 +41,13 @@ export default function ToolCall({
   const [isAnimating, setIsAnimating] = useState(false);
   const prevShowInfoRef = useRef<boolean>(showInfo);
 
-  const { function_name, domain, isMCPToolCall, mcpServerName } = useMemo(() => {
+  const { function_name, domain } = useMemo(() => {
     if (typeof name !== 'string') {
-      return { function_name: '', domain: null, isMCPToolCall: false, mcpServerName: '' };
+      return { function_name: '', domain: null };
     }
     if (name.includes(Constants.mcp_delimiter)) {
-      const [func, server] = name.split(Constants.mcp_delimiter);
-      return {
-        function_name: func || '',
-        domain: server && (server.replaceAll(actionDomainSeparator, '.') || null),
-        isMCPToolCall: true,
-        mcpServerName: server || '',
-      };
+      const [func] = name.split(Constants.mcp_delimiter);
+      return { function_name: func || '', domain: null };
     }
     const [func, _domain] = name.includes(actionDelimiter)
       ? name.split(actionDelimiter)
@@ -60,13 +55,11 @@ export default function ToolCall({
     return {
       function_name: func || '',
       domain: _domain && (_domain.replaceAll(actionDomainSeparator, '.') || null),
-      isMCPToolCall: false,
-      mcpServerName: '',
     };
   }, [name]);
 
   const actionId = useMemo(() => {
-    if (isMCPToolCall || !auth) {
+    if (!auth) {
       return '';
     }
     try {
@@ -77,23 +70,21 @@ export default function ToolCall({
     } catch {
       return '';
     }
-  }, [auth, isMCPToolCall]);
+  }, [auth]);
 
   const handleOAuthClick = useCallback(async () => {
     if (!auth) {
       return;
     }
     try {
-      if (isMCPToolCall && mcpServerName) {
-        await dataService.bindMCPOAuth(mcpServerName);
-      } else if (actionId) {
+      if (actionId) {
         await dataService.bindActionOAuth(actionId);
       }
     } catch (e) {
       logger.error('Failed to bind OAuth CSRF cookie', e);
     }
     window.open(auth, '_blank', 'noopener,noreferrer');
-  }, [auth, isMCPToolCall, mcpServerName, actionId]);
+  }, [auth, actionId]);
 
   const error =
     typeof output === 'string' && output.toLowerCase().includes('error processing tool');
@@ -141,9 +132,6 @@ export default function ToolCall({
   const getFinishedText = () => {
     if (cancelled) {
       return localize('com_ui_cancelled');
-    }
-    if (isMCPToolCall === true) {
-      return localize('com_assistants_completed_function', { 0: function_name });
     }
     if (domain != null && domain && domain.length !== Constants.ENCODED_DOMAIN_LENGTH) {
       return localize('com_assistants_completed_action', { 0: domain });

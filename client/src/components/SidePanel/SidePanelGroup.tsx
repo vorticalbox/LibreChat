@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import throttle from 'lodash/throttle';
-import { useRecoilValue } from 'recoil';
 import { getConfigDefaults } from 'librechat-data-provider';
 import { ResizablePanel, ResizablePanelGroup, useMediaQuery } from '@librechat/client';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
@@ -8,7 +7,6 @@ import { useGetStartupConfig } from '~/data-provider';
 import ArtifactsPanel from './ArtifactsPanel';
 import { normalizeLayout, cn } from '~/utils';
 import SidePanel from './SidePanel';
-import store from '~/store';
 
 interface SidePanelProps {
   defaultLayout?: number[] | undefined;
@@ -45,7 +43,6 @@ const SidePanelGroup = memo(
     const [shouldRenderArtifacts, setShouldRenderArtifacts] = useState(artifacts != null);
 
     const isSmallScreen = useMediaQuery('(max-width: 767px)');
-    const hideSidePanel = useRecoilValue(store.hideSidePanel);
 
     const calculateLayout = useCallback(() => {
       if (artifacts == null) {
@@ -127,7 +124,7 @@ const SidePanelGroup = memo(
             />
           )}
 
-          {!hideSidePanel && interfaceConfig.sidePanel === true && (
+          {interfaceConfig.sidePanel === true && (
             <SidePanel
               panelRef={panelRef}
               minSize={minSize}
@@ -147,7 +144,7 @@ const SidePanelGroup = memo(
         {artifacts != null && isSmallScreen && (
           <div className="fixed inset-0 z-[100]">{artifacts}</div>
         )}
-        {!hideSidePanel && interfaceConfig.sidePanel === true && (
+        {interfaceConfig.sidePanel === true && (
           <button
             onClick={handleClosePanel}
             aria-label="Close right side panel"

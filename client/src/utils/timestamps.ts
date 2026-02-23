@@ -11,12 +11,10 @@ const CLEANUP_THRESHOLD = 2 * 24 * 60 * 60 * 1000;
  * These are conversation-specific keys that can accumulate over time
  */
 const TIMESTAMPED_KEYS = [
-  LocalStorageKeys.LAST_MCP_,
   LocalStorageKeys.LAST_CODE_TOGGLE_,
   LocalStorageKeys.LAST_WEB_SEARCH_TOGGLE_,
   LocalStorageKeys.LAST_FILE_SEARCH_TOGGLE_,
   LocalStorageKeys.LAST_ARTIFACTS_TOGGLE_,
-  LocalStorageKeys.PIN_MCP_,
 ];
 
 /**
@@ -29,7 +27,10 @@ export function setTimestamp(key: string): void {
 /**
  * Set a value in localStorage with an associated timestamp
  */
-export function setTimestampedValue(key: string, value: any): void {
+export function setTimestampedValue(
+  key: string,
+  value: string | number | boolean | null | Record<string, unknown> | unknown[],
+): void {
   localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
   localStorage.setItem(`${key}${TIMESTAMP_SUFFIX}`, Date.now().toString());
 }
@@ -79,9 +80,6 @@ export function cleanupTimestampedStorage(): void {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
-      if (key === LocalStorageKeys.PIN_MCP_) {
-        continue;
-      }
 
       // Check if this key should be timestamped
       const isTimestampedKey = TIMESTAMPED_KEYS.some(

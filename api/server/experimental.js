@@ -25,7 +25,6 @@ const createValidateImageRequest = require('./middleware/validateImageRequest');
 const { jwtLogin, ldapLogin, passportLogin } = require('~/strategies');
 const { updateInterfacePermissions } = require('~/models/interface');
 const { checkMigrations } = require('./services/start/migration');
-const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
 const { getAppConfig } = require('./services/Config');
 const staticCache = require('./utils/staticCache');
@@ -322,7 +321,6 @@ if (cluster.isMaster) {
     app.use('/api/memories', routes.memories);
     app.use('/api/permissions', routes.accessPermissions);
     app.use('/api/tags', routes.tags);
-    app.use('/api/mcp', routes.mcp);
 
     /** Error handler */
     app.use(ErrorController);
@@ -357,7 +355,6 @@ if (cluster.isMaster) {
       );
 
       /** Initialize MCP servers and OAuth reconnection for this worker */
-      await initializeMCPs();
       await initializeOAuthReconnectManager();
       await checkMigrations();
     });

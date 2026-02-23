@@ -54,7 +54,6 @@ describe('loadWebSearchConfig', () => {
         firecrawlVersion: '${FIRECRAWL_VERSION}',
         jinaApiKey: '${JINA_API_KEY}',
         jinaApiUrl: '${JINA_API_URL}',
-        cohereApiKey: '${COHERE_API_KEY}',
         safeSearch: SafeSearchTypes.MODERATE,
       });
     });
@@ -129,21 +128,18 @@ describe('loadWebSearchConfig', () => {
       expect(result?.searxngApiKey).toBe('${SEARXNG_API_KEY}');
       expect(result?.firecrawlApiKey).toBe('${FIRECRAWL_API_KEY}');
       expect(result?.jinaApiKey).toBe('${JINA_API_KEY}');
-      expect(result?.cohereApiKey).toBe('${COHERE_API_KEY}');
     });
 
     it('should preserve custom API keys', () => {
       const config: TCustomConfig['webSearch'] = {
         serperApiKey: 'actual-serper-key',
         jinaApiKey: 'actual-jina-key',
-        cohereApiKey: 'actual-cohere-key',
       };
 
       const result = loadWebSearchConfig(config);
 
       expect(result?.serperApiKey).toBe('actual-serper-key');
       expect(result?.jinaApiKey).toBe('actual-jina-key');
-      expect(result?.cohereApiKey).toBe('actual-cohere-key');
     });
   });
 

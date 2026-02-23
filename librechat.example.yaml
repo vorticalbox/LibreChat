@@ -577,9 +577,7 @@ endpoints:
 # webSearch:
 #   # Jina Reranking Configuration
 #   jinaApiKey: '${JINA_API_KEY}'  # Your Jina API key
-#   jinaApiUrl: '${JINA_API_URL}'  # Custom Jina API URL (optional, defaults to https://api.jina.ai/v1/rerank)
-#   # Other rerankers
-#   cohereApiKey: '${COHERE_API_KEY}'
+#   jinaApiUrl: '${JINA_API_URL}'  # Custom Jina API URL (optional)
 #   # Search providers
 #   serperApiKey: '${SERPER_API_KEY}'
 #   searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'

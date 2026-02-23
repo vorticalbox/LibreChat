@@ -57,7 +57,18 @@ export const messages = (params: q.MessagesListParams) => {
     return `${messagesRoot}/${conversationId}/${messageId}`;
   }
 
+  /**
+   * Support both legacy path routes and query-based listing:
+   * - `/api/messages/:conversationId` (legacy) returns a raw array of messages
+   * - `/api/messages?conversationId=...&cursor=...` (new) returns a paginated shape
+   *
+   * If any list/pagination/search params are present, prefer the query-based route.
+   */
   if (conversationId) {
+    const hasListParams = Object.keys(rest).length > 0;
+    if (hasListParams) {
+      return `${messagesRoot}${buildQuery({ conversationId, ...rest })}`;
+    }
     return `${messagesRoot}/${conversationId}`;
   }
 

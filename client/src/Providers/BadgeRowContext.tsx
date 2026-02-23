@@ -3,7 +3,6 @@ import { useSetRecoilState } from 'recoil';
 import { Tools, Constants, LocalStorageKeys, AgentCapabilities } from 'librechat-data-provider';
 import type { TAgentsEndpoint } from 'librechat-data-provider';
 import {
-  useMCPServerManager,
   useSearchApiKeyForm,
   useGetAgentsConfig,
   useCodeApiKeyForm,
@@ -23,7 +22,6 @@ interface BadgeRowContextType {
   codeInterpreter: ReturnType<typeof useToolToggle>;
   codeApiKeyForm: ReturnType<typeof useCodeApiKeyForm>;
   searchApiKeyForm: ReturnType<typeof useSearchApiKeyForm>;
-  mcpServerManager: ReturnType<typeof useMCPServerManager>;
 }
 
 const BadgeRowContext = createContext<BadgeRowContextType | undefined>(undefined);
@@ -61,7 +59,7 @@ export default function BadgeRowProvider({
    * - `__defaults__`: specs configured but none active → shared defaults key
    * - undefined: spec active (no persistence) or no specs configured (original behavior)
    *
-   * When a spec is active, tool/MCP state is NOT persisted — the admin's spec
+   * When a spec is active, tool state is NOT persisted — the admin's spec
    * configuration is always applied fresh. Only non-spec user preferences persist.
    */
   const storageContextKey = useMemo(() => {
@@ -110,11 +108,14 @@ export default function BadgeRowProvider({
       const fileSearchToggleValue = getTimestampedValue(fileSearchToggleKey);
       const artifactsToggleValue = getTimestampedValue(artifactsToggleKey);
 
-      const initialValues: Record<string, any> = {};
+      const initialValues: Partial<Record<string, boolean>> = {};
 
       if (codeToggleValue !== null) {
         try {
-          initialValues[Tools.execute_code] = JSON.parse(codeToggleValue);
+          const parsed = JSON.parse(codeToggleValue);
+          if (typeof parsed === 'boolean') {
+            initialValues[Tools.execute_code] = parsed;
+          }
         } catch (e) {
           console.error('Failed to parse code toggle value:', e);
         }
@@ -122,7 +123,10 @@ export default function BadgeRowProvider({
 
       if (webSearchToggleValue !== null) {
         try {
-          initialValues[Tools.web_search] = JSON.parse(webSearchToggleValue);
+          const parsed = JSON.parse(webSearchToggleValue);
+          if (typeof parsed === 'boolean') {
+            initialValues[Tools.web_search] = parsed;
+          }
         } catch (e) {
           console.error('Failed to parse web search toggle value:', e);
         }
@@ -130,7 +134,10 @@ export default function BadgeRowProvider({
 
       if (fileSearchToggleValue !== null) {
         try {
-          initialValues[Tools.file_search] = JSON.parse(fileSearchToggleValue);
+          const parsed = JSON.parse(fileSearchToggleValue);
+          if (typeof parsed === 'boolean') {
+            initialValues[Tools.file_search] = parsed;
+          }
         } catch (e) {
           console.error('Failed to parse file search toggle value:', e);
         }
@@ -138,7 +145,10 @@ export default function BadgeRowProvider({
 
       if (artifactsToggleValue !== null) {
         try {
-          initialValues[AgentCapabilities.artifacts] = JSON.parse(artifactsToggleValue);
+          const parsed = JSON.parse(artifactsToggleValue);
+          if (typeof parsed === 'boolean') {
+            initialValues[AgentCapabilities.artifacts] = parsed;
+          }
         } catch (e) {
           console.error('Failed to parse artifacts toggle value:', e);
         }
@@ -146,30 +156,11 @@ export default function BadgeRowProvider({
 
       const hasOverrides = Object.keys(initialValues).length > 0;
 
-      /** Read persisted MCP values from localStorage */
-      let mcpOverrides: string[] | null = null;
-      const mcpStorageKey = `${LocalStorageKeys.LAST_MCP_}${storageSuffix}`;
-      const mcpRaw = localStorage.getItem(mcpStorageKey);
-      if (mcpRaw !== null) {
-        try {
-          const parsed = JSON.parse(mcpRaw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            mcpOverrides = parsed;
-          }
-        } catch (e) {
-          console.error('Failed to parse MCP values:', e);
-        }
-      }
-
       setEphemeralAgent((prev) => {
         if (prev == null) {
           /** ephemeralAgent is null — use localStorage defaults */
-          if (hasOverrides || mcpOverrides) {
-            const result = { ...initialValues };
-            if (mcpOverrides) {
-              result.mcp = mcpOverrides;
-            }
-            return result;
+          if (hasOverrides) {
+            return { ...initialValues };
           }
           return prev;
         }
@@ -182,10 +173,6 @@ export default function BadgeRowProvider({
             result[toolKey] = value;
             changed = true;
           }
-        }
-        if (mcpOverrides && result.mcp === undefined) {
-          result.mcp = mcpOverrides;
-          changed = true;
         }
         return changed ? result : prev;
       });
@@ -242,8 +229,6 @@ export default function BadgeRowProvider({
     isAuthenticated: true,
   });
 
-  const mcpServerManager = useMCPServerManager({ conversationId, storageContextKey });
-
   const value: BadgeRowContextType = {
     webSearch,
     artifacts,
@@ -254,7 +239,6 @@ export default function BadgeRowProvider({
     codeApiKeyForm,
     codeInterpreter,
     searchApiKeyForm,
-    mcpServerManager,
   };
 
   return <BadgeRowContext.Provider value={value}>{children}</BadgeRowContext.Provider>;

@@ -793,7 +793,6 @@ export type TStartupConfig = {
   webSearch?: {
     searchProvider?: SearchProviders;
     scraperProvider?: ScraperProviders;
-    rerankerType?: RerankerTypes;
   };
   mcpServers?: Record<
     string,
@@ -825,7 +824,6 @@ export enum OCRStrategy {
 export enum SearchCategories {
   PROVIDERS = 'providers',
   SCRAPERS = 'scrapers',
-  RERANKERS = 'rerankers',
 }
 
 export enum SearchProviders {
@@ -837,11 +835,6 @@ export enum SearchProviders {
 export enum ScraperProviders {
   FIRECRAWL = 'firecrawl',
   SERPER = 'serper',
-}
-
-export enum RerankerTypes {
-  JINA = 'jina',
-  COHERE = 'cohere',
 }
 
 export enum SafeSearchTypes {
@@ -859,10 +852,8 @@ export const webSearchSchema = z.object({
   firecrawlVersion: z.string().optional().default('${FIRECRAWL_VERSION}'),
   jinaApiKey: z.string().optional().default('${JINA_API_KEY}'),
   jinaApiUrl: z.string().optional().default('${JINA_API_URL}'),
-  cohereApiKey: z.string().optional().default('${COHERE_API_KEY}'),
   searchProvider: z.nativeEnum(SearchProviders).optional(),
   scraperProvider: z.nativeEnum(ScraperProviders).optional(),
-  rerankerType: z.nativeEnum(RerankerTypes).optional(),
   scraperTimeout: z.number().optional(),
   safeSearch: z.nativeEnum(SafeSearchTypes).default(SafeSearchTypes.MODERATE),
   firecrawlOptions: z
