@@ -256,13 +256,23 @@ export function createFileMethods(mongoose: typeof import('mongoose')) {
   }): Promise<IMongoFile | null> {
     const File = mongoose.models.File as Model<IMongoFile>;
     const { file_id, inc = 1 } = data;
+    const normalizedFileId = file_id?.trim();
+    if (!normalizedFileId) {
+      return null;
+    }
     const updateOperation = {
       $inc: { usage: inc },
       $unset: { expiresAt: '', temp_file_id: '' },
     };
-    return File.findOneAndUpdate({ file_id }, updateOperation, {
-      new: true,
-    }).lean();
+    return File.findOneAndUpdate(
+      {
+        $or: [{ file_id: normalizedFileId }, { temp_file_id: normalizedFileId }],
+      },
+      updateOperation,
+      {
+        new: true,
+      },
+    ).lean();
   }
 
   /**
@@ -343,6 +353,9 @@ export function createFileMethods(mongoose: typeof import('mongoose')) {
 
     for (const file of files) {
       const { file_id } = file;
+      if (!file_id) {
+        continue;
+      }
       if (seen.has(file_id)) {
         continue;
       }
@@ -356,6 +369,9 @@ export function createFileMethods(mongoose: typeof import('mongoose')) {
     }
 
     for (const file_id of fileIds) {
+      if (!file_id) {
+        continue;
+      }
       if (seen.has(file_id)) {
         continue;
       }

@@ -33,6 +33,42 @@ function createCloseHandler(abortController) {
 }
 
 /**
+ * Attach current-request files to the saved user message.
+ * Falls back to filepath matching to handle temp->final file_id transitions.
+ */
+function attachRequestFilesToUserMessage({ requestFiles, attachments, userMessage }) {
+  if (!requestFiles || !attachments) {
+    return;
+  }
+
+  userMessage.files = [];
+  const requestedFileIds = new Set();
+  const requestedFilepaths = new Set();
+
+  for (const file of requestFiles) {
+    if (file?.file_id) {
+      requestedFileIds.add(file.file_id);
+    }
+    if (file?.temp_file_id) {
+      requestedFileIds.add(file.temp_file_id);
+    }
+    if (file?.filepath) {
+      requestedFilepaths.add(file.filepath);
+    }
+  }
+
+  for (const attachment of attachments) {
+    const hasFileIdMatch = attachment?.file_id && requestedFileIds.has(attachment.file_id);
+    const hasFilepathMatch = attachment?.filepath && requestedFilepaths.has(attachment.filepath);
+    if (hasFileIdMatch || hasFilepathMatch) {
+      userMessage.files.push(sanitizeFileForTransmit(attachment));
+    }
+  }
+
+  delete userMessage.image_urls;
+}
+
+/**
  * Resumable Agent Controller - Generation runs independently of HTTP connection.
  * Returns streamId immediately, client subscribes separately via SSE.
  */
@@ -252,16 +288,11 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
         conversation.title =
           conversation && !conversation.title ? null : conversation?.title || 'New Chat';
 
-        if (req.body.files && client.options?.attachments) {
-          userMessage.files = [];
-          const messageFiles = new Set(req.body.files.map((file) => file.file_id));
-          for (const attachment of client.options.attachments) {
-            if (messageFiles.has(attachment.file_id)) {
-              userMessage.files.push(sanitizeFileForTransmit(attachment));
-            }
-          }
-          delete userMessage.image_urls;
-        }
+        attachRequestFilesToUserMessage({
+          requestFiles: req.body.files,
+          attachments: client.options?.attachments,
+          userMessage,
+        });
 
         // Check abort state BEFORE calling completeJob (which triggers abort signal for cleanup)
         const wasAbortedBeforeComplete = job.abortController.signal.aborted;
@@ -640,16 +671,11 @@ const _LegacyAgentController = async (req, res, next, initializeClient, addTitle
       conversation && !conversation.title ? null : conversation?.title || 'New Chat';
 
     // Process files if needed (sanitize to remove large text fields before transmission)
-    if (req.body.files && client.options?.attachments) {
-      userMessage.files = [];
-      const messageFiles = new Set(req.body.files.map((file) => file.file_id));
-      for (const attachment of client.options.attachments) {
-        if (messageFiles.has(attachment.file_id)) {
-          userMessage.files.push(sanitizeFileForTransmit(attachment));
-        }
-      }
-      delete userMessage.image_urls;
-    }
+    attachRequestFilesToUserMessage({
+      requestFiles: req.body.files,
+      attachments: client.options?.attachments,
+      userMessage,
+    });
 
     // Only send if not aborted
     if (!job.abortController.signal.aborted) {

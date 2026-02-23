@@ -248,8 +248,8 @@ class AgentClient extends BaseClient {
         assistantName: this.options?.modelLabel,
       });
 
-      /** For non-latest messages, prepend file context directly to message content */
-      if (message.fileContext && i !== orderedMessages.length - 1) {
+      /** Prepend file context directly to message content */
+      if (message.fileContext) {
         if (typeof formattedMessage.content === 'string') {
           formattedMessage.content = message.fileContext + '\n' + formattedMessage.content;
         } else {
@@ -296,12 +296,6 @@ class AgentClient extends BaseClient {
      */
     const sharedRunContextParts = [];
 
-    /** File context from the latest message (attachments) */
-    const latestMessage = orderedMessages[orderedMessages.length - 1];
-    if (latestMessage?.fileContext) {
-      sharedRunContextParts.push(latestMessage.fileContext);
-    }
-
     /** Augmented prompt from RAG/context handlers */
     if (this.contextHandlers) {
       this.augmentedPrompt = await this.contextHandlers.createContext();
@@ -312,7 +306,7 @@ class AgentClient extends BaseClient {
 
     /** Memory context (user preferences/memories) */
     const withoutKeys = await this.useMemory();
-    if (withoutKeys) {
+    if (withoutKeys != null) {
       const memoryContext = `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`;
       sharedRunContextParts.push(memoryContext);
     }
@@ -501,6 +495,7 @@ class AgentClient extends BaseClient {
       instructions: agent.instructions,
       llmConfig,
       tokenLimit: memoryConfig.tokenLimit,
+      autoCapture: memoryConfig.autoCapture,
     };
 
     const userId = this.options.req.user.id + '';

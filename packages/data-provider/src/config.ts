@@ -931,6 +931,7 @@ export const memorySchema = z.object({
   tokenLimit: z.number().optional(),
   charLimit: z.number().optional().default(10000),
   personalize: z.boolean().default(true),
+  autoCapture: z.boolean().optional().default(false),
   messageWindowSize: z.number().optional().default(5),
   agent: z
     .union([

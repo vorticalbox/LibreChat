@@ -279,6 +279,28 @@ describe('File Methods', () => {
       const updated2 = await fileMethods.updateFileUsage({ file_id: fileId, inc: 5 });
       expect(updated2?.usage).toBe(6);
     });
+
+    it('should resolve temp_file_id and unset it after usage update', async () => {
+      const fileId = uuidv4();
+      const tempFileId = uuidv4();
+      const userId = new mongoose.Types.ObjectId();
+
+      await fileMethods.createFile({
+        file_id: fileId,
+        temp_file_id: tempFileId,
+        user: userId,
+        filename: 'temp-id-test.txt',
+        filepath: '/uploads/temp-id-test.txt',
+        type: 'text/plain',
+        bytes: 100,
+        usage: 0,
+      });
+
+      const updated = await fileMethods.updateFileUsage({ file_id: tempFileId });
+      expect(updated?.file_id).toBe(fileId);
+      expect(updated?.usage).toBe(1);
+      expect(updated?.temp_file_id).toBeUndefined();
+    });
   });
 
   describe('updateFilesUsage', () => {

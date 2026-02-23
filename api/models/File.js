@@ -174,11 +174,19 @@ const updateFile = async (data) => {
  */
 const updateFileUsage = async (data) => {
   const { file_id, inc = 1 } = data;
+  const normalizedFileId = file_id?.trim();
+  if (!normalizedFileId) {
+    return null;
+  }
   const updateOperation = {
     $inc: { usage: inc },
     $unset: { expiresAt: '', temp_file_id: '' },
   };
-  return await File.findOneAndUpdate({ file_id }, updateOperation, { new: true }).lean();
+  return await File.findOneAndUpdate(
+    { $or: [{ file_id: normalizedFileId }, { temp_file_id: normalizedFileId }] },
+    updateOperation,
+    { new: true },
+  ).lean();
 };
 
 /**

@@ -36,6 +36,7 @@ export interface MemoryConfig {
   instructions?: string;
   llmConfig?: Partial<LLMConfig>;
   tokenLimit?: number;
+  autoCapture?: boolean;
 }
 
 export const memoryInstructions =
@@ -71,6 +72,34 @@ ${validKeys && validKeys.length > 0 ? `\nVALID KEYS: ${validKeys.join(', ')}` : 
 ${tokenLimit ? `\nTOKEN LIMIT: Maximum ${tokenLimit} tokens per memory value.` : ''}
 
 When in doubt, and the user hasn't asked to remember or forget anything, END THE TURN IMMEDIATELY.`;
+
+const getAutoCaptureInstructions = (
+  validKeys?: string[],
+  tokenLimit?: number,
+) => `You maintain long-term user memory across chats.
+
+On EVERY turn, evaluate whether the latest conversation contains durable user information worth remembering.
+
+Use \`set_memory\` to create or update memory when the message reveals stable, reusable information such as:
+  - Preferences (style, tone, tools, workflows, likes/dislikes)
+  - Personal profile facts (identity details the user repeatedly relies on)
+  - Ongoing goals, projects, commitments, constraints, or routines
+  - Important standing context likely to matter in future chats
+
+Use \`delete_memory\` when:
+  1. The user explicitly asks to forget information
+  2. Existing memory is clearly outdated, incorrect, or contradicted by newer user info
+
+Do NOT store:
+  - One-off transient details unlikely to matter later
+  - Guesses or inferred facts with low confidence
+  - Sensitive/private details unless the user clearly intends them to be remembered
+
+If no memory update is needed this turn, DO NOT call memory tools and END THE TURN.
+
+${validKeys && validKeys.length > 0 ? `\nVALID KEYS: ${validKeys.join(', ')}` : ''}
+
+${tokenLimit ? `\nTOKEN LIMIT: Maximum ${tokenLimit} tokens per memory value.` : ''}`;
 
 /**
  * Creates a memory tool instance with user context
@@ -504,8 +533,12 @@ export async function createMemoryProcessor({
   streamId?: string | null;
   user?: IUser;
 }): Promise<[string, (messages: BaseMessage[]) => Promise<(TAttachment | null)[] | undefined>]> {
-  const { validKeys, instructions, llmConfig, tokenLimit } = config;
-  const finalInstructions = instructions || getDefaultInstructions(validKeys, tokenLimit);
+  const { validKeys, instructions, llmConfig, tokenLimit, autoCapture = false } = config;
+  const finalInstructions =
+    instructions ||
+    (autoCapture
+      ? getAutoCaptureInstructions(validKeys, tokenLimit)
+      : getDefaultInstructions(validKeys, tokenLimit));
 
   const { withKeys, withoutKeys, totalTokens } = await memoryMethods.getFormattedMemories({
     userId,

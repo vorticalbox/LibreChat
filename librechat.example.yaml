@@ -599,6 +599,9 @@ endpoints:
 #   # (optional) Enable personalization features (defaults to true if memory is configured)
 #   # When false, users will not see the Personalization tab in settings
 #   personalize: true
+#   # (optional) Automatically capture durable user memories from normal conversation turns
+#   # When false, memory updates are intended for explicit remember/forget requests
+#   autoCapture: false
 #   # Memory agent configuration - either use an existing agent by ID or define inline
 #   agent:
 #     # Option 1: Use existing agent by ID

@@ -32,6 +32,7 @@ export default function createPayload(submission: t.TSubmission) {
   const payload: t.TPayload = {
     ...userMessage,
     ...endpointOption,
+    files: userMessage.files,
     endpoint,
     addedConvo,
     isTemporary,

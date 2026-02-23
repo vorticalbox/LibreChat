@@ -1997,6 +1997,27 @@ describe('AgentClient - titleConvo', () => {
       expect(parallelAgent.instructions).toBe('Original parallel instructions');
     });
 
+    it('should include memory context scaffold when memories are enabled but empty', async () => {
+      client.useMemory = jest.fn().mockResolvedValue('');
+
+      const messages = [
+        {
+          messageId: 'msg-1',
+          parentMessageId: null,
+          sender: 'User',
+          text: 'Hello',
+          isCreatedByUser: true,
+        },
+      ];
+
+      await client.buildMessages(messages, null, {
+        instructions: 'Base instructions',
+        additional_instructions: null,
+      });
+
+      expect(client.options.agent.instructions).toContain('# Existing memory about the user:');
+    });
+
     it('should handle parallel agents without existing instructions', async () => {
       const memoryContent = 'User is a data scientist.';
       client.useMemory = jest.fn().mockResolvedValue(memoryContent);

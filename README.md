@@ -12,7 +12,12 @@ This fork is tuned for low-memory self-hosting on Raspberry Pi hardware.
 
 ## Added
 
-- Jina AI web search provider integration in the backend web search path.
+- Jina web search is enabled in runtime config (`webSearch.searchProvider: jina`).
+- Proactive cross-chat memory capture is enabled (`memory.autoCapture: true`) so durable user facts are checked and saved each turn.
+- Memory context is now consistently included for the agent run path, even when memory is currently empty.
+- Agent attachment handling now supports `file_id`, `temp_file_id`, and `filepath` fallback matching to keep message files attached reliably.
+- File usage updates now resolve both final and temporary file IDs, reducing temp-to-final file transition issues.
+- Frontend file state handling now remaps temporary IDs to final IDs and includes `temp_file_id` in message payloads.
 - Paginated chat loading in the frontend.
 - Initial conversation load is limited to the latest 10 messages.
 - Older messages are loaded on scroll.

@@ -33,7 +33,16 @@ export default function useUpdateFiles(setFiles: FileSetter) {
         console.warn(`File with id ${fileId} not found.`);
         return currentFiles;
       }
-      updatedFiles.set(fileId, { ...currentFile, ...updates });
+
+      const updatedFile = { ...currentFile, ...updates };
+      const nextFileId = updates.file_id;
+      if (nextFileId && nextFileId !== fileId) {
+        updatedFiles.delete(fileId);
+        updatedFiles.set(nextFileId, updatedFile);
+      } else {
+        updatedFiles.set(fileId, updatedFile);
+      }
+
       const filepath = updates['filepath'] ?? '';
       if (filepath && updates['progress'] !== 1 && !isEntityFile) {
         const files = Object.fromEntries(updatedFiles);
