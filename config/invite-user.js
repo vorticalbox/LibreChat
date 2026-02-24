@@ -1,11 +1,9 @@
 const path = require('path');
 const mongoose = require('mongoose');
-const { checkEmailConfig } = require('@librechat/api');
 const { User } = require('@librechat/data-schemas').createModels(mongoose);
 require('module-alias')({ base: path.resolve(__dirname, '..', 'api') });
 const { askQuestion, silentExit } = require('./helpers');
 const { createInvite } = require('~/models/inviteUser');
-const { sendEmail } = require('~/server/utils');
 const connect = require('./connect');
 
 (async () => {
@@ -19,12 +17,6 @@ const connect = require('./connect');
     console.orange('Usage: npm run invite-user <email>');
     console.orange('Note: if you do not pass in the arguments, you will be prompted for them.');
     console.purple('--------------------------');
-  }
-
-  // Check if email service is enabled
-  if (!checkEmailConfig()) {
-    console.red('Error: Email service is not enabled!');
-    silentExit(1);
   }
 
   // Get the email of the user to be invited
@@ -51,31 +43,8 @@ const connect = require('./connect');
   const token = await createInvite(email);
   const inviteLink = `${process.env.DOMAIN_CLIENT}/register?token=${token}`;
 
-  const appName = process.env.APP_TITLE || 'LibreChat';
-
-  if (!checkEmailConfig()) {
-    console.green('Send this link to the user:', inviteLink);
-    silentExit(0);
-  }
-
-  try {
-    await sendEmail({
-      email: email,
-      subject: `Invite to join ${appName}!`,
-      payload: {
-        appName: appName,
-        inviteLink: inviteLink,
-        year: new Date().getFullYear(),
-      },
-      template: 'inviteUser.handlebars',
-    });
-  } catch (error) {
-    console.error('Error: ' + error.message);
-    silentExit(1);
-  }
-
-  // Done!
-  console.green('Invitation sent successfully!');
+  console.green('Invitation link created. Share this link manually:');
+  console.green(inviteLink);
   silentExit(0);
 })();
 

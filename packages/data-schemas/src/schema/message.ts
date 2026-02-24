@@ -8,20 +8,17 @@ const messageSchema: Schema<IMessage> = new Schema(
       unique: true,
       required: true,
       index: true,
-      meiliIndex: true,
     },
     conversationId: {
       type: String,
       index: true,
       required: true,
-      meiliIndex: true,
     },
     user: {
       type: String,
       index: true,
       required: true,
       default: null,
-      meiliIndex: true,
     },
     model: {
       type: String,
@@ -50,11 +47,9 @@ const messageSchema: Schema<IMessage> = new Schema(
     },
     sender: {
       type: String,
-      meiliIndex: true,
     },
     text: {
       type: String,
-      meiliIndex: true,
     },
     summary: {
       type: String,
@@ -94,17 +89,10 @@ const messageSchema: Schema<IMessage> = new Schema(
       default: undefined,
       required: false,
     },
-    _meiliIndex: {
-      type: Boolean,
-      required: false,
-      select: false,
-      default: false,
-    },
     files: { type: [{ type: mongoose.Schema.Types.Mixed }], default: undefined },
     content: {
       type: [{ type: mongoose.Schema.Types.Mixed }],
       default: undefined,
-      meiliIndex: true,
     },
     thread_id: {
       type: String,
@@ -151,8 +139,5 @@ const messageSchema: Schema<IMessage> = new Schema(
 messageSchema.index({ expiredAt: 1 }, { expireAfterSeconds: 0 });
 messageSchema.index({ createdAt: 1 });
 messageSchema.index({ messageId: 1, user: 1 }, { unique: true });
-
-// index for MeiliSearch sync operations
-messageSchema.index({ _meiliIndex: 1, expiredAt: 1 });
 
 export default messageSchema;

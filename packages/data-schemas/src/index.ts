@@ -8,4 +8,3 @@ export { createMethods, DEFAULT_REFRESH_TOKEN_EXPIRY, DEFAULT_SESSION_EXPIRY } f
 export type * from './types';
 export type * from './methods';
 export { default as logger } from './config/winston';
-export { default as meiliLogger } from './config/meiliLogger';

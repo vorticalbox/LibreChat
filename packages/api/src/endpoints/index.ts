@@ -1,7 +1,5 @@
-export * from './anthropic';
-export * from './bedrock';
+// Removed non-OpenAI endpoints: anthropic, bedrock, google
 export * from './config';
 export * from './custom';
-export * from './google';
 export * from './models';
 export * from './openai';

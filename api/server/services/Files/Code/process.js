@@ -99,7 +99,7 @@ const processCodeOutput = async ({
       url: `${baseURL}/download/${session_id}/${id}`,
       responseType: 'arraybuffer',
       headers: {
-        'User-Agent': 'LibreChat/1.0',
+        'User-Agent': 'libreNano/1.0',
         'X-API-Key': apiKey,
       },
       timeout: 15000,
@@ -285,7 +285,7 @@ async function getSessionInfo(fileIdentifier, apiKey) {
         ...queryParams,
       },
       headers: {
-        'User-Agent': 'LibreChat/1.0',
+        'User-Agent': 'libreNano/1.0',
         'X-API-Key': apiKey,
       },
       timeout: 5000,

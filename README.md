@@ -1,51 +1,71 @@
-# LibreChat (Raspberry Pi 3 Fork)
+# libreNano (Raspberry Pi 3 Fork)
 
-This repository is a customized fork of LibreChat optimized for running on a Raspberry Pi 3 (1GB RAM) in an API-first deployment.
+This repository is a heavily trimmed upstream fork focused on running on a Raspberry Pi 3 (1GB RAM) with a small, practical feature set.
 
-Original project:
+Upstream project:
+
 - https://github.com/danny-avila/LibreChat
 - https://docs.librechat.ai
 
-## Purpose
+## Why This Exists
 
-This fork is tuned for low-memory self-hosting on Raspberry Pi hardware.
+This fork is for a low-resource, local-network deployment where reliability and low memory usage matter more than full platform coverage.
 
-## Added
+Goals:
 
-- Jina web search provider support (configure `webSearch.searchProvider: jina` + `JINA_API_KEY`).
-- Proactive cross-chat memory capture is enabled (`memory.autoCapture: true`) so durable user facts are checked and saved each turn.
-- Memory context is now consistently included for the agent run path, even when memory is currently empty.
-- Agent attachment handling now supports `file_id`, `temp_file_id`, and `filepath` fallback matching to keep message files attached reliably.
-- File usage updates now resolve both final and temporary file IDs, reducing temp-to-final file transition issues.
-- Frontend file state handling now remaps temporary IDs to final IDs and includes `temp_file_id` in message payloads.
-- Paginated chat loading in the frontend.
-- Initial conversation load is limited to the latest 10 messages.
-- Older messages are loaded on scroll.
-- Frontend message-cache hardening to prevent `messageId` undefined crashes during streaming/finalization on long chats.
-- Message listing URL fix: pagination uses `GET /api/messages?conversationId=...` so infinite scroll works reliably.
-- The right-side controls panel can no longer be permanently hidden via settings (to prevent getting locked out of Agents/Prompts/Memories).
-- API-only Docker defaults for this low-memory target.
+- Keep the frontend experience and core chat UX.
+- Keep only the features we actually use.
+- Remove integrations that add weight but provide no value in this deployment.
+- Reduce Docker image size and runtime memory pressure for Pi 3 hardware.
 
-## Removed or Disabled (Deployment)
+## Scope (Small, Intentional Feature Set)
 
-- Removed side-service containers from default runtime in `docker-compose.yml` for this setup.
-- Disabled local search path at runtime via `SEARCH=false`.
-- Uses external MongoDB Atlas instead of a local Mongo container.
-- MCP is removed (frontend UI + backend mounts/entrypoints) to reduce footprint and avoid MCP init/runtime failures.
-- WebSearch rerankers are removed (Jina is used directly as the search provider).
-- RAG/vector features are still present in source, but not enabled in this deployment profile.
+### Kept
 
-## Deployment Files Used
+- OpenAI endpoint support
+- Jina web search
+- Agents, Prompts, Memories
+- Frontend UI with paginated chat loading
+  - Initial load: latest 10 messages
+  - Older messages loaded on scroll
+- Local auth and local file workflows needed for this profile
 
-- `docker-compose.yml`
-- `docker-compose.override.yml`
-- `librechat.yaml`
-- `.env`
+### Removed or Disabled for This Profile
 
-## Run (API only)
+- Meilisearch
+- Email flows (verification/reset/invite mail delivery)
+- Cloud storage providers (S3 / Azure Blob / Firebase)
+- Unused social auth providers
+- Extra side-service containers in default compose profile
+- Optional integrations not used by this deployment
+
+## Optimization Strategy
+
+This fork prefers **actual removals** over “stubbed placeholders” where possible:
+
+- Runtime paths for removed features were cut out.
+- Unused services/routes/modules were deleted.
+- Schema/plugin artifacts for removed features were cleaned up.
+- Docker runtime was optimized for size and Pi-friendly memory use.
+
+## Current Image Result
+
+Using `Dockerfile.optimized`:
+
+- Current measured image size: **~470 MB** (arm64 build environment)
+- Size will vary by architecture/base layers
+
+## Run
 
 ```bash
 docker compose build api
 docker compose up -d api
 docker compose logs -f api
 ```
+
+## Deployment Files
+
+- `docker-compose.yml`
+- `docker-compose.override.yml`
+- `librechat.yaml`
+- `.env`

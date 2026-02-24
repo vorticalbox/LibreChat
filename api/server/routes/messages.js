@@ -16,6 +16,8 @@ const { requireJwtAuth, validateMessageReq } = require('~/server/middleware');
 const { getConvosQueried } = require('~/models/Conversation');
 const { Message } = require('~/db/models');
 
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const router = express.Router();
 router.use(requireJwtAuth);
 
@@ -63,49 +65,64 @@ router.get('/', async (req, res) => {
       }
       response = { messages, nextCursor };
     } else if (search) {
-      const searchResults = await Message.meiliSearch(search, { filter: `user = "${user}"` }, true);
+      const trimmedSearch = String(search).trim();
+      if (!trimmedSearch) {
+        response = { messages: [], nextCursor: null };
+      } else {
+        const regex = new RegExp(escapeRegex(trimmedSearch), 'i');
+        const messages = await Message.find({
+          user,
+          $and: [
+            { $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] },
+            { $or: [{ text: { $regex: regex } }, { 'content.text': { $regex: regex } }] },
+          ],
+        })
+          .sort({ updatedAt: -1 })
+          .limit(200)
+          .lean();
 
-      const messages = searchResults.hits || [];
+        if (messages.length === 0) {
+          response = { messages: [], nextCursor: null };
+        } else {
+          const result = await getConvosQueried(req.user.id, messages, cursor, pageSize);
+          const messageIds = [];
+          const cleanedMessages = [];
+          for (const message of messages) {
+            if (result.convoMap[message.conversationId]) {
+              messageIds.push(message.messageId);
+              cleanedMessages.push(message);
+            }
+          }
 
-      const result = await getConvosQueried(req.user.id, messages, cursor);
+          const dbMessages = await getMessages({
+            user,
+            messageId: { $in: messageIds },
+          });
 
-      const messageIds = [];
-      const cleanedMessages = [];
-      for (let i = 0; i < messages.length; i++) {
-        let message = messages[i];
-        if (result.convoMap[message.conversationId]) {
-          messageIds.push(message.messageId);
-          cleanedMessages.push(message);
+          const dbMessageMap = {};
+          for (const dbMessage of dbMessages) {
+            dbMessageMap[dbMessage.messageId] = dbMessage;
+          }
+
+          const activeMessages = [];
+          for (const message of cleanedMessages) {
+            const convo = result.convoMap[message.conversationId];
+            const dbMessage = dbMessageMap[message.messageId];
+
+            activeMessages.push({
+              ...message,
+              title: convo.title,
+              conversationId: message.conversationId,
+              model: convo.model,
+              isCreatedByUser: dbMessage?.isCreatedByUser,
+              endpoint: dbMessage?.endpoint,
+              iconURL: dbMessage?.iconURL,
+            });
+          }
+
+          response = { messages: activeMessages, nextCursor: result.nextCursor };
         }
       }
-
-      const dbMessages = await getMessages({
-        user,
-        messageId: { $in: messageIds },
-      });
-
-      const dbMessageMap = {};
-      for (const dbMessage of dbMessages) {
-        dbMessageMap[dbMessage.messageId] = dbMessage;
-      }
-
-      const activeMessages = [];
-      for (const message of cleanedMessages) {
-        const convo = result.convoMap[message.conversationId];
-        const dbMessage = dbMessageMap[message.messageId];
-
-        activeMessages.push({
-          ...message,
-          title: convo.title,
-          conversationId: message.conversationId,
-          model: convo.model,
-          isCreatedByUser: dbMessage?.isCreatedByUser,
-          endpoint: dbMessage?.endpoint,
-          iconURL: dbMessage?.iconURL,
-        });
-      }
-
-      response = { messages: activeMessages, nextCursor: null };
     } else {
       response = { messages: [], nextCursor: null };
     }

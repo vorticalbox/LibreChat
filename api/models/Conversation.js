@@ -3,6 +3,8 @@ const { createTempChatExpirationDate } = require('@librechat/api');
 const { getMessages, deleteMessages } = require('./Message');
 const { Conversation } = require('~/db/models');
 
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Searches for a conversation by conversationId and returns a lean document with only conversationId and user.
  * @param {string} conversationId - The conversation's ID.
@@ -118,7 +120,6 @@ module.exports = {
         updateOperation.$unset = metadata.unsetFields;
       }
 
-      /** Note: the resulting Model object is necessary for Meilisearch operations */
       const conversation = await Conversation.findOneAndUpdate(
         { conversationId, user: req.user.id },
         updateOperation,
@@ -186,19 +187,11 @@ module.exports = {
     filters.push({ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] });
 
     if (search) {
-      try {
-        const meiliResults = await Conversation.meiliSearch(search, { filter: `user = "${user}"` });
-        const matchingIds = Array.isArray(meiliResults.hits)
-          ? meiliResults.hits.map((result) => result.conversationId)
-          : [];
-        if (!matchingIds.length) {
-          return { conversations: [], nextCursor: null };
-        }
-        filters.push({ conversationId: { $in: matchingIds } });
-      } catch (error) {
-        logger.error('[getConvosByCursor] Error during meiliSearch', error);
-        throw new Error('Error during meiliSearch');
+      const sanitizedSearch = escapeRegex(String(search).trim());
+      if (!sanitizedSearch) {
+        return { conversations: [], nextCursor: null };
       }
+      filters.push({ title: { $regex: sanitizedSearch, $options: 'i' } });
     }
 
     const validSortFields = ['title', 'createdAt', 'updatedAt'];
@@ -228,7 +221,7 @@ module.exports = {
             },
           ],
         };
-      } catch (err) {
+      } catch (_err) {
         logger.warn('[getConvosByCursor] Invalid cursor format, starting from beginning');
       }
       if (cursorFilter) {

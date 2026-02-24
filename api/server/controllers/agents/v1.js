@@ -5,17 +5,12 @@ const { logger } = require('@librechat/data-schemas');
 const {
   agentCreateSchema,
   agentUpdateSchema,
-  refreshListAvatars,
   mergeAgentOcrConversion,
-  MAX_AVATAR_REFRESH_AGENTS,
   convertOcrToContextInPlace,
 } = require('@librechat/api');
 const {
-  Time,
   Tools,
-  CacheKeys,
   Constants,
-  FileSources,
   ResourceType,
   AccessRoleIds,
   PrincipalType,
@@ -43,11 +38,9 @@ const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { getCategoriesWithCounts, deleteFileByFilter } = require('~/models');
 const { resizeAvatar } = require('~/server/services/Files/images/avatar');
 const { getFileStrategy } = require('~/server/utils/getFileStrategy');
-const { refreshS3Url } = require('~/server/services/Files/S3/crud');
 const { filterFile } = require('~/server/services/Files/process');
 const { updateAction, getActions } = require('~/models/Action');
 const { getCachedTools } = require('~/server/services/Config');
-const { getLogStores } = require('~/cache');
 
 const systemTools = {
   [Tools.execute_code]: true,
@@ -159,17 +152,6 @@ const getAgentHandler = async (req, res, expandProperties = false) => {
     }
 
     agent.version = agent.versions ? agent.versions.length : 0;
-
-    if (agent.avatar && agent.avatar?.source === FileSources.s3) {
-      try {
-        agent.avatar = {
-          ...agent.avatar,
-          filepath: await refreshS3Url(agent.avatar),
-        };
-      } catch (e) {
-        logger.warn('[/Agents/:id] Failed to refresh S3 URL', e);
-      }
-    }
 
     agent.author = agent.author.toString();
 
@@ -523,35 +505,6 @@ const getListAgentsHandler = async (req, res) => {
       resourceType: ResourceType.AGENT,
       requiredPermissions: PermissionBits.VIEW,
     });
-
-    /**
-     * Refresh all S3 avatars for this user's accessible agent set (not only the current page)
-     * This addresses page-size limits preventing refresh of agents beyond the first page
-     */
-    const cache = getLogStores(CacheKeys.S3_EXPIRY_INTERVAL);
-    const refreshKey = `${userId}:agents_avatar_refresh`;
-    const alreadyChecked = await cache.get(refreshKey);
-    if (alreadyChecked) {
-      logger.debug('[/Agents] S3 avatar refresh already checked, skipping');
-    } else {
-      try {
-        const fullList = await getListAgentsByAccess({
-          accessibleIds,
-          otherParams: {},
-          limit: MAX_AVATAR_REFRESH_AGENTS,
-          after: null,
-        });
-        await refreshListAvatars({
-          agents: fullList?.data ?? [],
-          userId,
-          refreshS3Url,
-          updateAgent,
-        });
-        await cache.set(refreshKey, true, Time.THIRTY_MINUTES);
-      } catch (err) {
-        logger.error('[/Agents] Error refreshing avatars for full list: %o', err);
-      }
-    }
 
     // Use the new ACL-aware function
     const data = await getListAgentsByAccess({

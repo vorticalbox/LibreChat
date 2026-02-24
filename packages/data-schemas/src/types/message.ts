@@ -26,7 +26,6 @@ export interface IMessage extends Document {
     tag: TFeedbackTag | undefined;
     text?: string;
   };
-  _meiliIndex?: boolean;
   files?: unknown[];
   plugin?: {
     latest?: string;

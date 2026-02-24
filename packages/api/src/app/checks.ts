@@ -133,18 +133,11 @@ export function checkVariables() {
 /**
  * Checks the health of auxiliary API's by attempting a fetch request to their respective `/health` endpoints.
  * Logs information or warning based on the API's availability and response.
+ * RAG API disabled in this build.
  */
 export async function checkHealth() {
-  try {
-    const response = await fetch(`${process.env.RAG_API_URL}/health`);
-    if (response?.ok && response?.status === 200) {
-      logger.info(`RAG API is running and reachable at ${process.env.RAG_API_URL}.`);
-    }
-  } catch {
-    logger.warn(
-      `RAG API is either not running or not reachable at ${process.env.RAG_API_URL}, you may experience errors with file uploads.`,
-    );
-  }
+  // RAG API removed from build - skip health check
+  logger.debug('RAG API health check skipped (not available in this build)');
 }
 
 /**

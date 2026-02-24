@@ -3,14 +3,14 @@
 
 services:
   api:
-    container_name: LibreChat
+    container_name: libreNano
     ports:
       - '${PORT:-3080}:${PORT:-3080}'
     image: librechat:local
     build:
       context: .
-      dockerfile: Dockerfile
-      target: node
+      dockerfile: Dockerfile.optimized
+      target: runtime
     restart: always
     user: '${UID:-1000}:${GID:-1000}'
     extra_hosts:

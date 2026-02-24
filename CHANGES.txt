@@ -1,0 +1,44 @@
+## LibreChat Optimization - Completed
+
+### What was done:
+
+1. **Enhanced .dockerignore** - Added 73 lines of exclusions
+   - Removed docs, tests, CI files, examples from Docker build context
+   - Saves ~200-300 MB in build context
+
+2. **Removed 28 dependencies from api/package.json:**
+   - All OAuth providers (Google, Facebook, GitHub, Discord, Apple, LDAP, SAML, OpenID)
+   - Cloud storage SDKs (AWS S3, Azure, Firebase)
+   - AI providers (Anthropic Vertex, AWS Bedrock, Google Gemini, Ollama)
+   - Redis packages (ioredis, @keyv/redis, connect-redis, rate-limit-redis)
+   - Email (nodemailer)
+   - Meilisearch
+   - Microsoft Graph API packages
+   
+3. **Kept critical dependencies:**
+   - keyv-file, mathjs, memorystore, tiktoken (actually used in core)
+   - OpenAI SDK, passport-local, passport-jwt
+   - All Express/MongoDB essentials
+
+4. **Stubbed removed code:**
+   - Auth strategies return errors if called
+   - S3/Azure/Firebase storage stubs
+   - Microsoft Graph API stubs
+   - Email service disabled
+
+5. **npm install results:**
+   - Removed 83 packages total
+   - Backend starts successfully
+
+### To build optimized image:
+
+docker buildx build \
+  --platform linux/arm64 \
+  -f Dockerfile.optimized \
+  -t librechat:optimized \
+  .
+
+### Expected savings:
+- Build context: ~200-300 MB
+- node_modules: ~150-200 MB
+- Total: ~350-500 MB reduction

@@ -1,11 +1,8 @@
 const { Providers } = require('@librechat/agents');
 const { EModelEndpoint } = require('librechat-data-provider');
 const { getCustomEndpointConfig } = require('@librechat/api');
-const initAnthropic = require('~/server/services/Endpoints/anthropic/initialize');
-const getBedrockOptions = require('~/server/services/Endpoints/bedrock/options');
 const initOpenAI = require('~/server/services/Endpoints/openAI/initialize');
 const initCustom = require('~/server/services/Endpoints/custom/initialize');
-const initGoogle = require('~/server/services/Endpoints/google/initialize');
 
 /** Check if the provider is a known custom provider
  * @param {string | undefined} [provider] - The provider string
@@ -23,10 +20,7 @@ const providerConfigMap = {
   [Providers.MOONSHOT]: initCustom,
   [Providers.OPENROUTER]: initCustom,
   [EModelEndpoint.openAI]: initOpenAI,
-  [EModelEndpoint.google]: initGoogle,
   [EModelEndpoint.azureOpenAI]: initOpenAI,
-  [EModelEndpoint.anthropic]: initAnthropic,
-  [EModelEndpoint.bedrock]: getBedrockOptions,
 };
 
 /**

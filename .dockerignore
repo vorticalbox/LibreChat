@@ -15,3 +15,76 @@ docs
 
 # Ignore all hidden files
 .*
+
+# Documentation files
+CHANGELOG.md
+README.md
+AGENTS.md
+CLAUDE.md
+*.md
+!packages/*/package.json
+
+# Development & CI files
+.github/
+.husky/
+.devcontainer/
+.prettierrc
+eslint.config.mjs
+turbo.json
+
+# Test files and directories
+e2e/
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.test.js
+**/*.spec.ts
+**/*.spec.tsx
+**/*.spec.js
+**/*.integration.spec.ts
+**/test/
+**/tests/
+jest.config.*
+playwright.config.*
+jestSetup.js
+
+# Build artifacts
+**/dist/
+**/build/
+**/.turbo/
+**/.rollup.cache/
+
+# Development tools
+helm/
+utils/
+redis-config/
+config/translations/
+config/update.js
+config/upgrade.js
+config/deployed-update.js
+config/smart-reinstall.js
+config/packages.js
+
+# User data and logs
+logs/
+uploads/
+images/
+data/
+*.log
+
+# Lock files (keep package-lock.json, exclude others)
+bun.lock
+pnpm-lock.yaml
+yarn.lock
+
+# Example and override files
+*.example
+*.example.*
+docker-compose.override.yml
+docker-compose.override.yml.example
+librechat.example.yaml
+.env.example
+
+# Scripts
+push.sh
+rag.yml

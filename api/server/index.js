@@ -19,20 +19,18 @@ const {
   GenerationJobManager,
   createStreamServices,
 } = require('@librechat/api');
-const { connectDb, indexSync } = require('~/db');
-const initializeOAuthReconnectManager = require('./services/initializeOAuthReconnectManager');
+const { connectDb } = require('~/db');
 const createValidateImageRequest = require('./middleware/validateImageRequest');
 const { jwtLogin, ldapLogin, passportLogin } = require('~/strategies');
 const { updateInterfacePermissions } = require('~/models/interface');
 const { checkMigrations } = require('./services/start/migration');
-const configureSocialLogins = require('./socialLogins');
 const { getAppConfig } = require('./services/Config');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const { seedDatabase } = require('~/models');
 const routes = require('./routes');
 
-const { PORT, HOST, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
+const { PORT, HOST, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
 
 // Allow PORT=0 to be used for automatic free port assignment
 const port = isNaN(Number(PORT)) ? 3080 : Number(PORT);
@@ -48,9 +46,6 @@ const startServer = async () => {
   await connectDb();
 
   logger.info('Connected to MongoDB');
-  indexSync().catch((err) => {
-    logger.error('[indexSync] Background sync failed:', err);
-  });
 
   app.disable('x-powered-by');
   app.set('trust proxy', trusted_proxy);
@@ -112,10 +107,6 @@ const startServer = async () => {
   app.use(staticCache(appConfig.paths.fonts));
   app.use(staticCache(appConfig.paths.assets));
 
-  if (!ALLOW_SOCIAL_LOGIN) {
-    console.warn('Social logins are disabled. Set ALLOW_SOCIAL_LOGIN=true to enable them.');
-  }
-
   /* OAUTH */
   app.use(passport.initialize());
   passport.use(jwtLogin());
@@ -126,11 +117,6 @@ const startServer = async () => {
     passport.use(ldapLogin);
   }
 
-  if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
-    await configureSocialLogins(app);
-  }
-
-  app.use('/oauth', routes.oauth);
   /* API Endpoints */
   app.use('/api/auth', routes.auth);
   app.use('/api/admin', routes.adminAuth);
@@ -138,7 +124,6 @@ const startServer = async () => {
   app.use('/api/keys', routes.keys);
   app.use('/api/api-keys', routes.apiKeys);
   app.use('/api/user', routes.user);
-  app.use('/api/search', routes.search);
   app.use('/api/messages', routes.messages);
   app.use('/api/convos', routes.convos);
   app.use('/api/presets', routes.presets);
@@ -191,7 +176,6 @@ const startServer = async () => {
       logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
     }
 
-    await initializeOAuthReconnectManager();
     await checkMigrations();
 
     // Configure stream services (auto-detects Redis from USE_REDIS env var)
@@ -223,7 +207,7 @@ process.on('uncaughtException', (err) => {
 
   if (err.message.includes('fetch failed')) {
     if (messageCount === 0) {
-      logger.warn('Meilisearch error, search will be disabled');
+      logger.warn('External fetch error detected; suppressing repeated logs.');
       messageCount++;
     }
 

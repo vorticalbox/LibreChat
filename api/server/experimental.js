@@ -19,20 +19,18 @@ const {
   handleJsonParseError,
   initializeFileStorage,
 } = require('@librechat/api');
-const { connectDb, indexSync } = require('~/db');
-const initializeOAuthReconnectManager = require('./services/initializeOAuthReconnectManager');
+const { connectDb } = require('~/db');
 const createValidateImageRequest = require('./middleware/validateImageRequest');
 const { jwtLogin, ldapLogin, passportLogin } = require('~/strategies');
 const { updateInterfacePermissions } = require('~/models/interface');
 const { checkMigrations } = require('./services/start/migration');
-const configureSocialLogins = require('./socialLogins');
 const { getAppConfig } = require('./services/Config');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const { seedDatabase } = require('~/models');
 const routes = require('./routes');
 
-const { PORT, HOST, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
+const { PORT, HOST, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
 
 /** Allow PORT=0 to be used for automatic free port assignment */
 const port = isNaN(Number(PORT)) ? 3080 : Number(PORT);
@@ -205,11 +203,6 @@ if (cluster.isMaster) {
     await connectDb();
     logger.info(`Worker ${process.pid}: Connected to MongoDB`);
 
-    /** Background index sync (non-blocking) */
-    indexSync().catch((err) => {
-      logger.error(`[Worker ${process.pid}][indexSync] Background sync failed:`, err);
-    });
-
     app.disable('x-powered-by');
     app.set('trust proxy', trusted_proxy);
 
@@ -275,10 +268,6 @@ if (cluster.isMaster) {
     app.use(staticCache(appConfig.paths.fonts));
     app.use(staticCache(appConfig.paths.assets));
 
-    if (!ALLOW_SOCIAL_LOGIN) {
-      logger.warn('Social logins are disabled. Set ALLOW_SOCIAL_LOGIN=true to enable them.');
-    }
-
     /** OAUTH */
     app.use(passport.initialize());
     passport.use(jwtLogin());
@@ -289,18 +278,12 @@ if (cluster.isMaster) {
       passport.use(ldapLogin);
     }
 
-    if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
-      await configureSocialLogins(app);
-    }
-
     /** Routes */
-    app.use('/oauth', routes.oauth);
     app.use('/api/auth', routes.auth);
     app.use('/api/actions', routes.actions);
     app.use('/api/keys', routes.keys);
     app.use('/api/api-keys', routes.apiKeys);
     app.use('/api/user', routes.user);
-    app.use('/api/search', routes.search);
     app.use('/api/messages', routes.messages);
     app.use('/api/convos', routes.convos);
     app.use('/api/presets', routes.presets);
@@ -309,7 +292,6 @@ if (cluster.isMaster) {
     app.use('/api/endpoints', routes.endpoints);
     app.use('/api/balance', routes.balance);
     app.use('/api/models', routes.models);
-    app.use('/api/plugins', routes.plugins);
     app.use('/api/config', routes.config);
     app.use('/api/assistants', routes.assistants);
     app.use('/api/files', await routes.files.initialize());
@@ -354,8 +336,6 @@ if (cluster.isMaster) {
         }:${port}`,
       );
 
-      /** Initialize MCP servers and OAuth reconnection for this worker */
-      await initializeOAuthReconnectManager();
       await checkMigrations();
     });
 

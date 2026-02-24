@@ -2,9 +2,10 @@ import { ProxyAgent } from 'undici';
 import { Providers } from '@librechat/agents';
 import { KnownEndpoints, EModelEndpoint } from 'librechat-data-provider';
 import type * as t from '~/types';
-import { getLLMConfig as getAnthropicLLMConfig } from '~/endpoints/anthropic/llm';
+// Removed non-OpenAI imports
+// import { getLLMConfig as getAnthropicLLMConfig } from '~/endpoints/anthropic/llm';
+// import { getGoogleConfig } from '~/endpoints/google/llm';
 import { getOpenAILLMConfig, extractDefaultParams } from './llm';
-import { getGoogleConfig } from '~/endpoints/google/llm';
 import { transformToOpenAIConfig } from './transform';
 import { constructAzureURL } from '~/utils/azure';
 import { createFetch } from '~/utils/generators';
@@ -39,8 +40,9 @@ export function getOpenAIConfig(
 
   let llmConfig: t.OAIClientOptions;
   let tools: t.LLMConfigResult['tools'];
-  const isAnthropic = options.customParams?.defaultParamsEndpoint === EModelEndpoint.anthropic;
-  const isGoogle = options.customParams?.defaultParamsEndpoint === EModelEndpoint.google;
+  // Removed support for non-OpenAI providers via custom params
+  const isAnthropic = false; // options.customParams?.defaultParamsEndpoint === EModelEndpoint.anthropic;
+  const isGoogle = false; // options.customParams?.defaultParamsEndpoint === EModelEndpoint.google;
 
   const useOpenRouter =
     !isAnthropic &&
@@ -55,68 +57,24 @@ export function getOpenAIConfig(
 
   let azure = options.azure;
   let headers = options.headers;
-  if (isAnthropic) {
-    const anthropicResult = getAnthropicLLMConfig(apiKey, {
-      modelOptions,
-      proxy: options.proxy,
-      reverseProxyUrl: baseURL,
-      addParams,
-      dropParams,
-      defaultParams,
-    });
-    /** Transform handles addParams/dropParams - it knows about OpenAI params */
-    const transformed = transformToOpenAIConfig({
-      addParams,
-      dropParams,
-      llmConfig: anthropicResult.llmConfig,
-      fromEndpoint: EModelEndpoint.anthropic,
-    });
-    llmConfig = transformed.llmConfig;
-    tools = anthropicResult.tools;
-    if (transformed.configOptions?.defaultHeaders) {
-      headers = Object.assign(headers ?? {}, transformed.configOptions?.defaultHeaders);
-    }
-  } else if (isGoogle) {
-    const googleResult = getGoogleConfig(
-      apiKey,
-      {
-        modelOptions,
-        reverseProxyUrl: baseURL ?? undefined,
-        authHeader: true,
-        addParams,
-        dropParams,
-        defaultParams,
-      },
-      true,
-    );
-    /** Transform handles addParams/dropParams - it knows about OpenAI params */
-    const transformed = transformToOpenAIConfig({
-      addParams,
-      dropParams,
-      defaultParams,
-      tools: googleResult.tools,
-      llmConfig: googleResult.llmConfig,
-      fromEndpoint: EModelEndpoint.google,
-    });
-    llmConfig = transformed.llmConfig;
-    tools = transformed.tools;
-  } else {
-    const openaiResult = getOpenAILLMConfig({
-      azure,
-      apiKey,
-      baseURL,
-      endpoint,
-      streaming,
-      addParams,
-      dropParams,
-      defaultParams,
-      modelOptions,
-      useOpenRouter,
-    });
-    llmConfig = openaiResult.llmConfig;
-    azure = openaiResult.azure;
-    tools = openaiResult.tools;
-  }
+
+  // Removed: anthropic and google config branches
+  // Only OpenAI config remains
+  const openaiResult = getOpenAILLMConfig({
+    azure,
+    apiKey,
+    baseURL,
+    endpoint,
+    streaming,
+    addParams,
+    dropParams,
+    defaultParams,
+    modelOptions,
+    useOpenRouter,
+  });
+  llmConfig = openaiResult.llmConfig;
+  azure = openaiResult.azure;
+  tools = openaiResult.tools;
 
   const configOptions: t.OpenAIConfiguration = {};
   if (baseURL) {
@@ -126,7 +84,7 @@ export function getOpenAIConfig(
     configOptions.defaultHeaders = Object.assign(
       {
         'HTTP-Referer': 'https://librechat.ai',
-        'X-Title': 'LibreChat',
+        'X-Title': 'libreNano',
       },
       headers,
     );

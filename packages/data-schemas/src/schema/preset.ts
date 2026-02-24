@@ -66,7 +66,6 @@ const presetSchema: Schema<IPreset> = new Schema(
     title: {
       type: String,
       default: 'New Chat',
-      meiliIndex: true,
     },
     user: {
       type: String,

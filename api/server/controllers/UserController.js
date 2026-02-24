@@ -1,5 +1,5 @@
 const { logger, webSearchKeys } = require('@librechat/data-schemas');
-const { Tools, CacheKeys, Constants, FileSources } = require('librechat-data-provider');
+const { Tools, CacheKeys, Constants } = require('librechat-data-provider');
 const {
   MCPOAuthHandler,
   MCPTokenStorage,
@@ -16,7 +16,6 @@ const {
   deleteUserKey,
   deleteConvos,
   deleteFiles,
-  updateUser,
   findToken,
   getFiles,
 } = require('~/models');
@@ -34,10 +33,8 @@ const {
   User,
 } = require('~/db/models');
 const { updateUserPluginAuth, deleteUserPluginAuth } = require('~/server/services/PluginService');
-const { verifyEmail, resendVerificationEmail } = require('~/server/services/AuthService');
 const { getMCPManager, getFlowStateManager, getMCPServersRegistry } = require('~/config');
 const { invalidateCachedTools } = require('~/server/services/Config/getCachedTools');
-const { needsRefresh, getNewS3URL } = require('~/server/services/Files/S3/crud');
 const { processDeleteRequest } = require('~/server/services/Files/process');
 const { getAppConfig } = require('~/server/services/Config');
 const { deleteToolCalls } = require('~/models/ToolCall');
@@ -46,7 +43,6 @@ const { deleteUserAgents } = require('~/models/Agent');
 const { getLogStores } = require('~/cache');
 
 const getUserController = async (req, res) => {
-  const appConfig = await getAppConfig({ role: req.user?.role });
   /** @type {IUser} */
   const userData = req.user.toObject != null ? req.user.toObject() : { ...req.user };
   /**
@@ -56,20 +52,6 @@ const getUserController = async (req, res) => {
   delete userData.password;
   delete userData.totpSecret;
   delete userData.backupCodes;
-  if (appConfig.fileStrategy === FileSources.s3 && userData.avatar) {
-    const avatarNeedsRefresh = needsRefresh(userData.avatar, 3600);
-    if (!avatarNeedsRefresh) {
-      return res.status(200).send(userData);
-    }
-    const originalAvatar = userData.avatar;
-    try {
-      userData.avatar = await getNewS3URL(userData.avatar);
-      await updateUser(userData.id, { avatar: userData.avatar });
-    } catch (error) {
-      userData.avatar = originalAvatar;
-      logger.error('Error getting new S3 URL for avatar:', error);
-    }
-  }
   res.status(200).send(userData);
 };
 
@@ -280,34 +262,6 @@ const deleteUserController = async (req, res) => {
   }
 };
 
-const verifyEmailController = async (req, res) => {
-  try {
-    const verifyEmailService = await verifyEmail(req);
-    if (verifyEmailService instanceof Error) {
-      return res.status(400).json(verifyEmailService);
-    } else {
-      return res.status(200).json(verifyEmailService);
-    }
-  } catch (e) {
-    logger.error('[verifyEmailController]', e);
-    return res.status(500).json({ message: 'Something went wrong.' });
-  }
-};
-
-const resendVerificationController = async (req, res) => {
-  try {
-    const result = await resendVerificationEmail(req);
-    if (result instanceof Error) {
-      return res.status(400).json(result);
-    } else {
-      return res.status(200).json(result);
-    }
-  } catch (e) {
-    logger.error('[verifyEmailController]', e);
-    return res.status(500).json({ message: 'Something went wrong.' });
-  }
-};
-
 /**
  * OAuth MCP specific uninstall logic
  */
@@ -415,7 +369,5 @@ module.exports = {
   getTermsStatusController,
   acceptTermsController,
   deleteUserController,
-  verifyEmailController,
   updateUserPluginsController,
-  resendVerificationController,
 };

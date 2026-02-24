@@ -1,0 +1,101 @@
+# v0.8.3-rc1 - Optimized for OpenAI/Jina with frontend support
+
+FROM node:20-alpine AS build-base
+
+RUN apk add --no-cache python3 py3-pip make g++
+
+WORKDIR /app
+
+FROM build-base AS dependencies
+
+ARG NODE_MAX_OLD_SPACE_SIZE=6144
+
+COPY package.json package-lock.json ./
+COPY api/package.json ./api/package.json
+COPY client/package.json ./client/package.json
+COPY packages/data-provider/package.json ./packages/data-provider/package.json
+COPY packages/data-schemas/package.json ./packages/data-schemas/package.json
+COPY packages/api/package.json ./packages/api/package.json
+COPY packages/client/package.json ./packages/client/package.json
+
+RUN npm config set fetch-retry-maxtimeout 600000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 15000 && \
+    npm ci --no-audit --no-fund
+
+FROM dependencies AS builder
+
+ARG NODE_MAX_OLD_SPACE_SIZE=6144
+
+COPY . .
+
+RUN NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend
+
+FROM alpine:3.21 AS runtime
+
+RUN apk add --no-cache nodejs npm jemalloc && \
+    addgroup -g 1000 node && \
+    adduser -D -u 1000 -G node node
+
+ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
+ENV HOST=0.0.0.0
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY api/package.json ./api/package.json
+COPY packages/data-provider/package.json ./packages/data-provider/package.json
+COPY packages/data-schemas/package.json ./packages/data-schemas/package.json
+COPY packages/api/package.json ./packages/api/package.json
+
+RUN npm ci --omit=dev --omit=optional --workspace api --workspace packages/api --workspace packages/data-provider --workspace packages/data-schemas --include-workspace-root=false --no-audit --no-fund && \
+    npm cache clean --force && \
+    for dir in test tests __tests__ docs doc example examples; do \
+      find /app/node_modules -type d -name "$dir" -prune -exec rm -rf '{}' +; \
+    done && \
+    find /app/node_modules -type f -name '*.md' -delete && \
+    find /app/node_modules -type f -name '*.markdown' -delete && \
+    find /app/node_modules -type f -name '*.map' -delete && \
+    if [ -f /app/node_modules/@librechat/agents/dist/cjs/instrumentation.cjs ]; then \
+      printf "%s\n" \
+      "'use strict';" \
+      "var misc = require('./utils/misc.cjs');" \
+      "if (misc.isPresent(process.env.LANGFUSE_SECRET_KEY) && misc.isPresent(process.env.LANGFUSE_PUBLIC_KEY) && misc.isPresent(process.env.LANGFUSE_BASE_URL)) {" \
+      "  var sdkNode = require('@opentelemetry/sdk-node');" \
+      "  var otel = require('@langfuse/otel');" \
+      "  var langfuseSpanProcessor = new otel.LangfuseSpanProcessor({" \
+      "    publicKey: process.env.LANGFUSE_PUBLIC_KEY," \
+      "    secretKey: process.env.LANGFUSE_SECRET_KEY," \
+      "    baseUrl: process.env.LANGFUSE_BASE_URL," \
+      "    environment: process.env.LANGFUSE_TRACING_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development'," \
+      "  });" \
+      "  var sdk = new sdkNode.NodeSDK({ spanProcessors: [langfuseSpanProcessor] });" \
+      "  sdk.start();" \
+      "}" \
+      > /app/node_modules/@librechat/agents/dist/cjs/instrumentation.cjs; \
+    fi && \
+    { find /app/node_modules/@opentelemetry -mindepth 1 -maxdepth 1 ! -name api -exec rm -rf '{}' + 2>/dev/null || true; } && \
+    rm -rf /app/node_modules/tiktoken && \
+    apk del npm
+
+COPY --from=builder --chown=node:node /app/packages/data-provider/dist ./packages/data-provider/dist
+COPY --from=builder --chown=node:node /app/packages/data-provider/package.json ./packages/data-provider/package.json
+COPY --from=builder --chown=node:node /app/packages/data-schemas/dist ./packages/data-schemas/dist
+COPY --from=builder --chown=node:node /app/packages/data-schemas/package.json ./packages/data-schemas/package.json
+COPY --from=builder --chown=node:node /app/packages/api/dist ./packages/api/dist
+COPY --from=builder --chown=node:node /app/packages/api/package.json ./packages/api/package.json
+COPY --from=builder --chown=node:node /app/client/dist ./client/dist
+COPY --from=builder --chown=node:node /app/api ./api
+COPY --from=dependencies --chown=node:node /app/node_modules/@img ./node_modules/@img
+
+RUN node -e "const fs=require('fs');const file='/app/packages/api/dist/index.js';if(fs.existsSync(file)){let src=fs.readFileSync(file,'utf8');src=src.replace(\"var tiktoken = require('tiktoken');\",\"var tiktoken = require('js-tiktoken');\");src=src.replaceAll('encoding_for_model','encodingForModel');src=src.replaceAll('get_encoding','getEncoding');src=src.replace('this.tokenizersCache[key].free();','if (typeof this.tokenizersCache[key].free === \\\"function\\\") { this.tokenizersCache[key].free(); }');fs.writeFileSync(file,src);}"
+
+RUN mkdir -p /app/client/public/images /app/logs /app/uploads && \
+    chown -R node:node /app/client/public/images /app/logs /app/uploads
+
+USER node
+
+EXPOSE 3080
+
+CMD ["node", "api/server/index.js"]

@@ -1,7 +1,6 @@
 import { nanoid } from 'nanoid';
 import { Constants } from 'librechat-data-provider';
 import type { FilterQuery, Model } from 'mongoose';
-import type { SchemaWithMeiliMethods } from '~/models/plugins/mongoMeili';
 import type * as t from '~/types';
 import logger from '~/config/winston';
 
@@ -155,6 +154,8 @@ function getMessagesUpToTarget(messages: t.IMessage[], targetMessageId: string):
 
 /** Factory function that takes mongoose instance and returns the methods */
 export function createShareMethods(mongoose: typeof import('mongoose')) {
+  const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
   /**
    * Get shared messages for a public share link
    */
@@ -214,7 +215,6 @@ export function createShareMethods(mongoose: typeof import('mongoose')) {
   ): Promise<t.SharedLinksResult> {
     try {
       const SharedLink = mongoose.models.SharedLink as Model<t.ISharedLink>;
-      const Conversation = mongoose.models.Conversation as SchemaWithMeiliMethods;
       const query: FilterQuery<t.ISharedLink> = { user, isPublic };
 
       if (pageParam) {
@@ -226,32 +226,15 @@ export function createShareMethods(mongoose: typeof import('mongoose')) {
       }
 
       if (search && search.trim()) {
-        try {
-          const searchResults = await Conversation.meiliSearch(search, {
-            filter: `user = "${user}"`,
-          });
-
-          if (!searchResults?.hits?.length) {
-            return {
-              links: [],
-              nextCursor: undefined,
-              hasNextPage: false,
-            };
-          }
-
-          const conversationIds = searchResults.hits.map((hit) => hit.conversationId);
-          query['conversationId'] = { $in: conversationIds };
-        } catch (searchError) {
-          logger.error('[getSharedLinks] Meilisearch error', {
-            error: searchError instanceof Error ? searchError.message : 'Unknown error',
-            user,
-          });
+        const sanitizedSearch = escapeRegex(search.trim());
+        if (!sanitizedSearch) {
           return {
             links: [],
             nextCursor: undefined,
             hasNextPage: false,
           };
         }
+        query['title'] = { $regex: sanitizedSearch, $options: 'i' };
       }
 
       const sort: Record<string, 1 | -1> = {};
@@ -350,9 +333,9 @@ export function createShareMethods(mongoose: typeof import('mongoose')) {
       throw new ShareServiceError('Missing required parameters', 'INVALID_PARAMS');
     }
     try {
-      const Message = mongoose.models.Message as SchemaWithMeiliMethods;
+      const Message = mongoose.models.Message as Model<t.IMessage>;
       const SharedLink = mongoose.models.SharedLink as Model<t.ISharedLink>;
-      const Conversation = mongoose.models.Conversation as SchemaWithMeiliMethods;
+      const Conversation = mongoose.models.Conversation as Model<t.IConversation>;
 
       const [existingShare, conversationMessages] = await Promise.all([
         SharedLink.findOne({
@@ -467,7 +450,7 @@ export function createShareMethods(mongoose: typeof import('mongoose')) {
 
     try {
       const SharedLink = mongoose.models.SharedLink as Model<t.ISharedLink>;
-      const Message = mongoose.models.Message as SchemaWithMeiliMethods;
+      const Message = mongoose.models.Message as Model<t.IMessage>;
       const share = (await SharedLink.findOne({ shareId, user })
         .select('-_id -__v -user')
         .lean()) as t.ISharedLink | null;
