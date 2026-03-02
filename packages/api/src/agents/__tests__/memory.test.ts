@@ -46,10 +46,12 @@ jest.mock('@librechat/agents', () => ({
 
 describe('createMemoryTool', () => {
   let mockSetMemory: jest.Mock;
+  let mockGetMemory: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockSetMemory = jest.fn().mockResolvedValue({ ok: true });
+    mockGetMemory = jest.fn().mockResolvedValue(null);
   });
 
   // Memory overflow tests
@@ -135,6 +137,107 @@ describe('createMemoryTool', () => {
         key: 'test',
         value: 'small memory',
         tokenCount: 12,
+      });
+    });
+  });
+
+  describe('merge handling', () => {
+    it('should merge with existing memory by default', async () => {
+      mockGetMemory.mockResolvedValue({
+        key: 'preferences',
+        value: 'User prefers concise responses.',
+        tokenCount: 31,
+      });
+
+      const tool = createMemoryTool({
+        userId: 'test-user',
+        setMemory: mockSetMemory,
+        getMemory: mockGetMemory,
+      });
+
+      const result = await tool.func({
+        key: 'preferences',
+        value: 'User also likes numbered options.',
+      });
+
+      const mergedValue = 'User prefers concise responses. User also likes numbered options.';
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe(`Memory set for key "preferences" (${mergedValue.length} tokens)`);
+
+      const artifacts = result[1] as Record<Tools.memory, MemoryArtifact>;
+      expect(artifacts[Tools.memory].value).toBe(mergedValue);
+
+      expect(mockSetMemory).toHaveBeenCalledWith({
+        userId: 'test-user',
+        key: 'preferences',
+        value: mergedValue,
+        tokenCount: mergedValue.length,
+      });
+    });
+
+    it('should replace existing memory when mode is replace', async () => {
+      mockGetMemory.mockResolvedValue({
+        key: 'preferences',
+        value: 'User prefers concise responses.',
+        tokenCount: 31,
+      });
+
+      const tool = createMemoryTool({
+        userId: 'test-user',
+        setMemory: mockSetMemory,
+        getMemory: mockGetMemory,
+      });
+
+      const result = await tool.func({
+        key: 'preferences',
+        value: 'User prefers detailed responses.',
+        mode: 'replace',
+      });
+
+      const replacementValue = 'User prefers detailed responses.';
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe(
+        `Memory set for key "preferences" (${replacementValue.length} tokens)`,
+      );
+
+      expect(mockSetMemory).toHaveBeenCalledWith({
+        userId: 'test-user',
+        key: 'preferences',
+        value: replacementValue,
+        tokenCount: replacementValue.length,
+      });
+    });
+
+    it('should account for existing key tokens when checking token limits', async () => {
+      mockGetMemory.mockResolvedValue({
+        key: 'preferences',
+        value: 'A'.repeat(40),
+        tokenCount: 40,
+      });
+
+      const tool = createMemoryTool({
+        userId: 'test-user',
+        setMemory: mockSetMemory,
+        getMemory: mockGetMemory,
+        tokenLimit: 100,
+        totalTokens: 95,
+      });
+
+      const replacement = 'B'.repeat(30);
+      const result = await tool.func({
+        key: 'preferences',
+        value: replacement,
+        mode: 'replace',
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe('Memory set for key "preferences" (30 tokens)');
+      expect(mockSetMemory).toHaveBeenCalledWith({
+        userId: 'test-user',
+        key: 'preferences',
+        value: replacement,
+        tokenCount: 30,
       });
     });
   });

@@ -39,6 +39,12 @@ Goals:
 - Extra side-service containers in default compose profile
 - Optional integrations not used by this deployment
 
+## Recent Behavior Updates
+
+- Memory updates now accumulate profile context by default (merge mode) instead of replacing existing values. Use replace mode only when prior memory is outdated or wrong.
+- Agent chats now show the same inline tool toggles (for example web search, code, artifacts) as non-agent model chats.
+- Compose mounts `./data` to `/app/data` so runtime data files (for example lightweight caches) persist across container recreates.
+
 ## Optimization Strategy
 
 This fork prefers **actual removals** over “stubbed placeholders” where possible:
@@ -61,6 +67,13 @@ Using `Dockerfile.optimized`:
 docker compose build api
 docker compose up -d api
 docker compose logs -f api
+```
+
+If a full rebuild fails on low-memory hardware, rebuild the api image first, then recreate:
+
+```bash
+docker compose build api --no-cache
+docker compose up -d --force-recreate api
 ```
 
 ## Deployment Files

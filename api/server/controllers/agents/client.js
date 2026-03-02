@@ -507,6 +507,7 @@ class AgentClient extends BaseClient {
       conversationId,
       memoryMethods: {
         setMemory: db.setMemory,
+        getMemory: db.getMemory,
         deleteMemory: db.deleteMemory,
         getFormattedMemories: db.getFormattedMemories,
       },

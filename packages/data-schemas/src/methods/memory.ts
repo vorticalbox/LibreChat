@@ -100,6 +100,23 @@ export function createMemoryMethods(mongoose: typeof import('mongoose')) {
   }
 
   /**
+   * Gets a specific memory entry for a user by key
+   */
+  async function getMemory({
+    userId,
+    key,
+  }: t.DeleteMemoryParams): Promise<t.IMemoryEntryLean | null> {
+    try {
+      const MemoryEntry = mongoose.models.MemoryEntry;
+      return (await MemoryEntry.findOne({ userId, key }).lean()) as t.IMemoryEntryLean | null;
+    } catch (error) {
+      throw new Error(
+        `Failed to get memory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
    * Gets all memory entries for a user
    */
   async function getAllUserMemories(
@@ -162,6 +179,7 @@ export function createMemoryMethods(mongoose: typeof import('mongoose')) {
     setMemory,
     createMemory,
     deleteMemory,
+    getMemory,
     getAllUserMemories,
     getFormattedMemories,
   };

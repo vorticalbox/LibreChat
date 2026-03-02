@@ -24,7 +24,9 @@ import { Tokenizer, resolveHeaders, createSafeUser } from '~/utils';
 type RequiredMemoryMethods = Pick<
   MemoryMethods,
   'setMemory' | 'deleteMemory' | 'getFormattedMemories'
->;
+> & {
+  getMemory?: MemoryMethods['getMemory'];
+};
 
 type ToolEndMetadata = Record<string, unknown> & {
   run_id?: string;
@@ -42,6 +44,34 @@ export interface MemoryConfig {
 export const memoryInstructions =
   'The system automatically stores important user information and can update or delete memories based on user requests, enabling dynamic memory management.';
 
+const normalizeMemoryValue = (value: string): string => value.trim();
+
+const mergeMemoryValue = (existingValue: string, incomingValue: string): string => {
+  const normalizedExisting = normalizeMemoryValue(existingValue);
+  const normalizedIncoming = normalizeMemoryValue(incomingValue);
+
+  if (!normalizedExisting) {
+    return normalizedIncoming;
+  }
+
+  if (!normalizedIncoming) {
+    return normalizedExisting;
+  }
+
+  const existingLower = normalizedExisting.toLowerCase();
+  const incomingLower = normalizedIncoming.toLowerCase();
+
+  if (existingLower.includes(incomingLower)) {
+    return normalizedExisting;
+  }
+
+  if (incomingLower.includes(existingLower)) {
+    return normalizedIncoming;
+  }
+
+  return `${normalizedExisting} ${normalizedIncoming}`;
+};
+
 const getDefaultInstructions = (
   validKeys?: string[],
   tokenLimit?: number,
@@ -50,6 +80,10 @@ const getDefaultInstructions = (
 The \`delete_memory\` tool should only be used in two scenarios:
   1. When the user explicitly asks to forget or remove specific information
   2. When updating existing memories, use the \`set_memory\` tool instead of deleting and re-adding the memory.
+
+The \`set_memory\` tool supports update modes:
+  - \`mode: "merge"\` (default): keep existing still-true context and add new details
+  - \`mode: "replace"\`: overwrite outdated or incorrect memory with corrected context
 
 1. ONLY use memory tools when the user requests memory actions with phrases like:
    - "Remember [that] [I]..."
@@ -65,7 +99,9 @@ The \`delete_memory\` tool should only be used in two scenarios:
 
 4. Memory tools are ONLY for memory requests, not for general tool usage.
 
-5. If the user doesn't ask you to remember or forget something, DO NOT use any memory tools.
+5. Build cumulative memory profiles: for existing keys, prefer \`mode: "merge"\` so memories keep prior useful context, not just a single latest fact.
+
+6. If the user doesn't ask you to remember or forget something, DO NOT use any memory tools.
 
 ${validKeys && validKeys.length > 0 ? `\nVALID KEYS: ${validKeys.join(', ')}` : ''}
 
@@ -85,6 +121,11 @@ Use \`set_memory\` to create or update memory when the message reveals stable, r
   - Personal profile facts (identity details the user repeatedly relies on)
   - Ongoing goals, projects, commitments, constraints, or routines
   - Important standing context likely to matter in future chats
+
+When updating an existing key:
+  - Default to \`mode: "merge"\` so memory accumulates durable context over time
+  - Use \`mode: "replace"\` only when prior memory is outdated, incorrect, or contradicted
+  - Keep memory concise but self-contained, preserving still-valid details
 
 Use \`delete_memory\` when:
   1. The user explicitly asks to forget information
@@ -107,21 +148,22 @@ ${tokenLimit ? `\nTOKEN LIMIT: Maximum ${tokenLimit} tokens per memory value.` :
 export const createMemoryTool = ({
   userId,
   setMemory,
+  getMemory,
   validKeys,
   tokenLimit,
   totalTokens = 0,
 }: {
   userId: string | ObjectId;
   setMemory: MemoryMethods['setMemory'];
+  getMemory?: MemoryMethods['getMemory'];
   validKeys?: string[];
   tokenLimit?: number;
   totalTokens?: number;
 }) => {
-  const remainingTokens = tokenLimit ? tokenLimit - totalTokens : Infinity;
-  const isOverflowing = tokenLimit ? remainingTokens <= 0 : false;
+  let runningTotalTokens = totalTokens;
 
   return tool(
-    async ({ key, value }) => {
+    async ({ key, value, mode = 'merge' }) => {
       try {
         if (validKeys && validKeys.length > 0 && !validKeys.includes(key)) {
           logger.warn(
@@ -132,27 +174,35 @@ export const createMemoryTool = ({
           return [`Invalid key "${key}". Must be one of: ${validKeys.join(', ')}`, undefined];
         }
 
-        const tokenCount = Tokenizer.getTokenCount(value, 'o200k_base');
+        const existingMemory = (await getMemory?.({ userId, key })) ?? null;
+        const existingTokenCount = existingMemory?.tokenCount ?? 0;
+        const nextValue =
+          mode === 'merge' && existingMemory?.value
+            ? mergeMemoryValue(existingMemory.value, value)
+            : normalizeMemoryValue(value);
+        const tokenCount = Tokenizer.getTokenCount(nextValue, 'o200k_base');
+        const currentTotalWithoutTarget = Math.max(0, runningTotalTokens - existingTokenCount);
 
-        if (isOverflowing) {
+        if (tokenLimit && existingMemory == null && currentTotalWithoutTarget >= tokenLimit) {
+          const overBy = currentTotalWithoutTarget - tokenLimit;
           const errorArtifact: Record<Tools.memory, MemoryArtifact> = {
             [Tools.memory]: {
               key: 'system',
               type: 'error',
               value: JSON.stringify({
                 errorType: 'already_exceeded',
-                tokenCount: Math.abs(remainingTokens),
-                totalTokens: totalTokens,
-                tokenLimit: tokenLimit!,
+                tokenCount: overBy,
+                totalTokens: currentTotalWithoutTarget,
+                tokenLimit,
               }),
-              tokenCount: totalTokens,
+              tokenCount: currentTotalWithoutTarget,
             },
           };
           return [`Memory storage exceeded. Cannot save new memories.`, errorArtifact];
         }
 
         if (tokenLimit) {
-          const newTotalTokens = totalTokens + tokenCount;
+          const newTotalTokens = currentTotalWithoutTarget + tokenCount;
           const newRemainingTokens = tokenLimit - newTotalTokens;
 
           if (newRemainingTokens < 0) {
@@ -166,7 +216,7 @@ export const createMemoryTool = ({
                   totalTokens: newTotalTokens,
                   tokenLimit,
                 }),
-                tokenCount: totalTokens,
+                tokenCount: currentTotalWithoutTarget,
               },
             };
             return [`Memory storage would exceed limit. Cannot save this memory.`, errorArtifact];
@@ -176,14 +226,15 @@ export const createMemoryTool = ({
         const artifact: Record<Tools.memory, MemoryArtifact> = {
           [Tools.memory]: {
             key,
-            value,
+            value: nextValue,
             tokenCount,
             type: 'update',
           },
         };
 
-        const result = await setMemory({ userId, key, value, tokenCount });
+        const result = await setMemory({ userId, key, value: nextValue, tokenCount });
         if (result.ok) {
+          runningTotalTokens = currentTotalWithoutTarget + tokenCount;
           logger.debug(`Memory set for key "${key}" (${tokenCount} tokens) for user "${userId}"`);
           return [`Memory set for key "${key}" (${tokenCount} tokens)`, artifact];
         }
@@ -209,7 +260,13 @@ export const createMemoryTool = ({
         value: z
           .string()
           .describe(
-            'Value MUST be a complete sentence that fully describes relevant user information.',
+            'Value MUST be self-contained. For updates, include still-valid prior context plus new details.',
+          ),
+        mode: z
+          .enum(['merge', 'replace'])
+          .optional()
+          .describe(
+            'Use "merge" to accumulate context on an existing key (default). Use "replace" to overwrite outdated details.',
           ),
       }),
     },
@@ -304,6 +361,7 @@ export async function processMemory({
   res,
   userId,
   setMemory,
+  getMemory,
   deleteMemory,
   messages,
   memory,
@@ -319,6 +377,7 @@ export async function processMemory({
 }: {
   res: ServerResponse;
   setMemory: MemoryMethods['setMemory'];
+  getMemory?: MemoryMethods['getMemory'];
   deleteMemory: MemoryMethods['deleteMemory'];
   userId: string | ObjectId;
   memory: string;
@@ -338,6 +397,7 @@ export async function processMemory({
       userId,
       tokenLimit,
       setMemory,
+      getMemory,
       validKeys,
       totalTokens,
     });
@@ -562,6 +622,7 @@ export async function createMemoryProcessor({
           totalTokens: totalTokens || 0,
           instructions: finalInstructions,
           setMemory: memoryMethods.setMemory,
+          getMemory: memoryMethods.getMemory,
           deleteMemory: memoryMethods.deleteMemory,
           user,
         });
