@@ -240,6 +240,30 @@ describe('createMemoryTool', () => {
         tokenCount: 30,
       });
     });
+
+    it('should skip updates when incoming value is effectively unchanged', async () => {
+      mockGetMemory.mockResolvedValue({
+        key: 'preferences',
+        value: 'User prefers concise numbered responses for technical tasks.',
+        tokenCount: 59,
+      });
+
+      const tool = createMemoryTool({
+        userId: 'test-user',
+        setMemory: mockSetMemory,
+        getMemory: mockGetMemory,
+      });
+
+      const result = await tool.func({
+        key: 'preferences',
+        value: 'User prefers concise, numbered responses for technical tasks.',
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe('Memory unchanged for key "preferences"');
+      expect(result[1]).toBeUndefined();
+      expect(mockSetMemory).not.toHaveBeenCalled();
+    });
   });
 
   // Basic functionality tests

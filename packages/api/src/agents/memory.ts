@@ -46,6 +46,48 @@ export const memoryInstructions =
 
 const normalizeMemoryValue = (value: string): string => value.trim();
 
+const normalizeComparisonValue = (value: string): string =>
+  normalizeMemoryValue(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokenizeMemoryValue = (value: string): Set<string> => {
+  const normalized = normalizeComparisonValue(value);
+  if (!normalized) {
+    return new Set<string>();
+  }
+
+  return new Set(normalized.split(' ').filter((token) => token.length > 2));
+};
+
+const getJaccardSimilarity = (left: Set<string>, right: Set<string>): number => {
+  if (left.size === 0 || right.size === 0) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const token of left) {
+    if (right.has(token)) {
+      intersection += 1;
+    }
+  }
+
+  const union = left.size + right.size - intersection;
+  if (union === 0) {
+    return 0;
+  }
+
+  return intersection / union;
+};
+
+const selectMoreInformativeValue = (existingValue: string, incomingValue: string): string =>
+  incomingValue.length >= existingValue.length ? incomingValue : existingValue;
+
+const isEquivalentMemory = (existingValue: string, candidateValue: string): boolean =>
+  normalizeComparisonValue(existingValue) === normalizeComparisonValue(candidateValue);
+
 const mergeMemoryValue = (existingValue: string, incomingValue: string): string => {
   const normalizedExisting = normalizeMemoryValue(existingValue);
   const normalizedIncoming = normalizeMemoryValue(incomingValue);
@@ -67,6 +109,15 @@ const mergeMemoryValue = (existingValue: string, incomingValue: string): string 
 
   if (incomingLower.includes(existingLower)) {
     return normalizedIncoming;
+  }
+
+  const existingTokens = tokenizeMemoryValue(normalizedExisting);
+  const incomingTokens = tokenizeMemoryValue(normalizedIncoming);
+  if (existingTokens.size >= 6 && incomingTokens.size >= 6) {
+    const similarity = getJaccardSimilarity(existingTokens, incomingTokens);
+    if (similarity >= 0.82) {
+      return selectMoreInformativeValue(normalizedExisting, normalizedIncoming);
+    }
   }
 
   return `${normalizedExisting} ${normalizedIncoming}`;
@@ -103,6 +154,10 @@ The \`set_memory\` tool supports update modes:
 
 6. If the user doesn't ask you to remember or forget something, DO NOT use any memory tools.
 
+7. ONLY store facts explicitly stated by the user. Do not store assistant summaries, guesses, tool output, or inferred facts.
+
+8. For updates, do not append near-duplicate phrasing. Prefer a single consolidated value that keeps only still-valid information.
+
 ${validKeys && validKeys.length > 0 ? `\nVALID KEYS: ${validKeys.join(', ')}` : ''}
 
 ${tokenLimit ? `\nTOKEN LIMIT: Maximum ${tokenLimit} tokens per memory value.` : ''}
@@ -114,7 +169,11 @@ const getAutoCaptureInstructions = (
   tokenLimit?: number,
 ) => `You maintain long-term user memory across chats.
 
+If the user explicitly asks you to remember, store, or save a fact, you MUST call \`set_memory\` in this turn.
+If the user explicitly asks you to forget or remove a memory, you MUST call \`delete_memory\` in this turn.
+
 On EVERY turn, evaluate whether the latest conversation contains durable user information worth remembering.
+Use memory tools with high precision and low recall: skip storage unless the value is clearly durable and likely useful in future chats.
 
 Use \`set_memory\` to create or update memory when the message reveals stable, reusable information such as:
   - Preferences (style, tone, tools, workflows, likes/dislikes)
@@ -122,14 +181,25 @@ Use \`set_memory\` to create or update memory when the message reveals stable, r
   - Ongoing goals, projects, commitments, constraints, or routines
   - Important standing context likely to matter in future chats
 
+Only use user-authored statements as the source of truth.
+Never store:
+  - Assistant-generated text, summaries, or paraphrases as facts
+  - One-off task requests, temporary troubleshooting details, or session-specific context
+  - Content that is likely irrelevant outside the current conversation
+
+If a candidate update is mostly a rephrase of existing memory, do not append it.
+Prefer \`mode: "replace"\` with one concise consolidated value, or skip the write entirely.
+
 When updating an existing key:
-  - Default to \`mode: "merge"\` so memory accumulates durable context over time
-  - Use \`mode: "replace"\` only when prior memory is outdated, incorrect, or contradicted
+  - Use \`mode: "merge"\` only for clearly new durable details not already captured
+  - Use \`mode: "replace"\` when prior memory is outdated, contradicted, or mostly overlapping
   - Keep memory concise but self-contained, preserving still-valid details
 
 Use \`delete_memory\` when:
   1. The user explicitly asks to forget information
   2. Existing memory is clearly outdated, incorrect, or contradicted by newer user info
+
+Call \`set_memory\` at most once per turn unless the user explicitly asks to remember multiple independent facts.
 
 Do NOT store:
   - One-off transient details unlikely to matter later
@@ -180,6 +250,10 @@ export const createMemoryTool = ({
           mode === 'merge' && existingMemory?.value
             ? mergeMemoryValue(existingMemory.value, value)
             : normalizeMemoryValue(value);
+        if (existingMemory?.value && isEquivalentMemory(existingMemory.value, nextValue)) {
+          logger.debug(`Memory unchanged for key "${key}" for user "${userId}"`);
+          return [`Memory unchanged for key "${key}"`, undefined];
+        }
         const tokenCount = Tokenizer.getTokenCount(nextValue, 'o200k_base');
         const currentTotalWithoutTarget = Math.max(0, runningTotalTokens - existingTokenCount);
 

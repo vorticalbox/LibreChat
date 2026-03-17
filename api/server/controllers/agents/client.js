@@ -363,10 +363,10 @@ class AgentClient extends BaseClient {
   /**
    * Creates a promise that resolves with the memory promise result or undefined after a timeout
    * @param {Promise<(TAttachment | null)[] | undefined>} memoryPromise - The memory promise to await
-   * @param {number} timeoutMs - Timeout in milliseconds (default: 3000)
+   * @param {number} timeoutMs - Timeout in milliseconds (default: 12000)
    * @returns {Promise<(TAttachment | null)[] | undefined>}
    */
-  async awaitMemoryWithTimeout(memoryPromise, timeoutMs = 3000) {
+  async awaitMemoryWithTimeout(memoryPromise, timeoutMs = 12000) {
     if (!memoryPromise) {
       return;
     }
@@ -380,7 +380,11 @@ class AgentClient extends BaseClient {
       return attachments;
     } catch (error) {
       if (error.message === 'Memory processing timeout') {
-        logger.warn('[AgentClient] Memory processing timed out after 3 seconds');
+        const timeoutSeconds =
+          Number.isFinite(timeoutMs) && timeoutMs > 0
+            ? Number((timeoutMs / 1000).toFixed(timeoutMs % 1000 === 0 ? 0 : 1))
+            : 'unknown';
+        logger.warn(`[AgentClient] Memory processing timed out after ${timeoutSeconds} seconds`);
       } else {
         logger.error('[AgentClient] Error processing memory:', error);
       }
@@ -483,7 +487,11 @@ class AgentClient extends BaseClient {
         provider: agent.provider,
         model: agent.model,
       },
-      agent.model_parameters,
+      this.options.agent?.model_parameters,
+      {
+        provider: this.options.agent?.provider ?? agent.provider,
+        model: this.options.agent?.model ?? agent.model,
+      },
     );
 
     /** @type {import('@librechat/api').MemoryConfig} */

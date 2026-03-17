@@ -2224,6 +2224,57 @@ describe('AgentClient - titleConvo', () => {
       );
     });
 
+    it('should use the active chat model for memory processing when a dedicated memory agent is configured', async () => {
+      const differentAgentId = 'different-agent-456';
+      const differentAgent = {
+        id: differentAgentId,
+        provider: EModelEndpoint.openAI,
+        model: 'gpt-4',
+        instructions: 'Different agent instructions',
+      };
+
+      mockAgent.provider = EModelEndpoint.bedrock;
+      mockAgent.model = 'anthropic.claude-3-5-haiku-20241022-v1:0';
+      mockAgent.model_parameters = {
+        model: 'anthropic.claude-3-5-haiku-20241022-v1:0',
+        maxTokens: 2048,
+        region: 'eu-west-1',
+      };
+      mockReq.config.memory.agent.id = differentAgentId;
+      mockReq.config.endpoints[EModelEndpoint.agents].allowedProviders = [
+        EModelEndpoint.openAI,
+        EModelEndpoint.bedrock,
+      ];
+
+      mockCheckAccess.mockResolvedValue(true);
+      mockLoadAgent.mockResolvedValue(differentAgent);
+      mockInitializeAgent.mockResolvedValue({
+        ...differentAgent,
+        provider: EModelEndpoint.openAI,
+      });
+      mockCreateMemoryProcessor.mockResolvedValue([undefined, jest.fn()]);
+
+      client = new AgentClient(mockOptions);
+      client.conversationId = 'convo-123';
+      client.responseMessageId = 'response-123';
+
+      await client.useMemory();
+
+      expect(mockCreateMemoryProcessor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            instructions: 'Different agent instructions',
+            llmConfig: expect.objectContaining({
+              provider: EModelEndpoint.bedrock,
+              model: 'anthropic.claude-3-5-haiku-20241022-v1:0',
+              maxTokens: 2048,
+              region: 'eu-west-1',
+            }),
+          }),
+        }),
+      );
+    });
+
     it('should return early when prelimAgent is undefined (no valid memory agent config)', async () => {
       mockReq.config.memory = {
         agent: {},
