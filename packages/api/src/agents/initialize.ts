@@ -1,4 +1,5 @@
 import { Providers } from '@librechat/agents';
+import { logger } from '@librechat/data-schemas';
 import {
   Constants,
   ErrorTypes,
@@ -330,8 +331,7 @@ export async function initializeAgent(
     llmConfig?.maxTokens as number | undefined,
     0,
   );
-  const agentMaxContextTokens = optionalChainWithEmptyCheck(
-    maxContextTokens,
+  const modelMaxContextTokens = optionalChainWithEmptyCheck(
     getModelMaxTokens(
       tokensModel ?? '',
       providerEndpointMap[provider as keyof typeof providerEndpointMap],
@@ -394,8 +394,43 @@ export async function initializeAgent(
     agent.additional_instructions = artifactsPromptResult ?? undefined;
   }
 
-  const agentMaxContextNum = Number(agentMaxContextTokens) || 18000;
+  const requestedMaxContextTokens =
+    typeof maxContextTokens === 'number' && Number.isFinite(maxContextTokens) && maxContextTokens > 0
+      ? maxContextTokens
+      : undefined;
+  const modelMaxContextNum = Number(modelMaxContextTokens) || 18000;
   const maxOutputTokensNum = Number(maxOutputTokens) || 0;
+  const hardContextCeiling = Math.max(1, modelMaxContextNum - maxOutputTokensNum);
+
+  /**
+   * Bedrock uses Anthropic's tokenizer which counts differently from OpenAI's tiktoken.
+   * Apply a more aggressive safety factor (0.75) to prevent over-limit errors.
+   */
+  const contextSafetyFactor = provider === EModelEndpoint.bedrock ? 0.75 : 0.9;
+  const safeContextCeiling = Math.max(1, Math.round(hardContextCeiling * contextSafetyFactor));
+  const maxContextCeiling =
+    provider === EModelEndpoint.bedrock ? safeContextCeiling : hardContextCeiling;
+
+  const computedMaxContext =
+    requestedMaxContextTokens != null
+      ? Math.min(requestedMaxContextTokens, maxContextCeiling)
+      : safeContextCeiling;
+
+  logger.debug('[initializeAgent] Context token debug', {
+    provider,
+    model: agent.model,
+    tokensModel,
+    maxContextTokensFromParams: maxContextTokens,
+    requestedMaxContextTokens,
+    modelMaxContextTokens,
+    modelMaxContextNum,
+    maxOutputTokensNum,
+    hardContextCeiling,
+    contextSafetyFactor,
+    safeContextCeiling,
+    maxContextCeiling,
+    computedMaxContext,
+  });
 
   const finalAttachments: IMongoFile[] = (primedAttachments ?? [])
     .filter((a): a is TFile => a != null)
@@ -413,10 +448,7 @@ export async function initializeAgent(
     toolContextMap: toolContextMap ?? {},
     useLegacyContent: !!options.useLegacyContent,
     tools: (tools ?? []) as GenericTool[] & string[],
-    maxContextTokens:
-      maxContextTokens != null && maxContextTokens > 0
-        ? maxContextTokens
-        : Math.round((agentMaxContextNum - maxOutputTokensNum) * 0.9),
+    maxContextTokens: computedMaxContext,
   };
 
   return initializedAgent;

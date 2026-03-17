@@ -62,13 +62,19 @@ function createMocks(overrides?: {
   maxContextTokens?: number;
   modelDefault?: number;
   maxOutputTokens?: number;
+  provider?: string;
 }) {
-  const { maxContextTokens, modelDefault = 200000, maxOutputTokens = 4096 } = overrides ?? {};
+  const {
+    maxContextTokens,
+    modelDefault = 200000,
+    maxOutputTokens = 4096,
+    provider = Providers.OPENAI,
+  } = overrides ?? {};
 
   const agent = {
     id: 'agent-1',
     model: 'test-model',
-    provider: Providers.OPENAI,
+    provider,
     tools: [],
     model_parameters: { model: 'test-model' },
   } as unknown as Agent;
@@ -218,11 +224,9 @@ describe('initializeAgent — maxContextTokens', () => {
       db,
     );
 
-    // 0 is not used as-is; the formula kicks in.
-    // optionalChainWithEmptyCheck(0, 200000, 18000) returns 0 (not null/undefined),
-    // then Number(0) || 18000 = 18000 (the fallback default).
+    // 0 is not used as-is; the formula kicks in using the current model window.
     expect(result.maxContextTokens).not.toBe(0);
-    const expected = Math.round((18000 - maxOutputTokens) * 0.9);
+    const expected = Math.round((200000 - maxOutputTokens) * 0.9);
     expect(result.maxContextTokens).toBe(expected);
   });
 
@@ -280,5 +284,66 @@ describe('initializeAgent — maxContextTokens', () => {
 
     // Should NOT be overridden to Math.round((128000 - 4096) * 0.9) = 111,514
     expect(result.maxContextTokens).toBe(userValue);
+  });
+
+  it('clamps oversized user-configured maxContextTokens to the current model ceiling', async () => {
+    const userValue = 400000;
+    const modelDefault = 200000;
+    const maxOutputTokens = 4096;
+    const { agent, req, res, loadTools, db } = createMocks({
+      maxContextTokens: userValue,
+      modelDefault,
+      maxOutputTokens,
+    });
+
+    const result = await initializeAgent(
+      {
+        req,
+        res,
+        agent,
+        loadTools,
+        endpointOption: {
+          endpoint: EModelEndpoint.agents,
+          model_parameters: { maxContextTokens: userValue },
+        },
+        allowedProviders: new Set([Providers.OPENAI]),
+        isInitialAgent: true,
+      },
+      db,
+    );
+
+    expect(result.maxContextTokens).toBe(modelDefault - maxOutputTokens);
+  });
+
+  it('uses the Bedrock safety ceiling when maxContextTokens carries over from a larger model', async () => {
+    const userValue = 400000;
+    const modelDefault = 200000;
+    const maxOutputTokens = 4096;
+    const { agent, req, res, loadTools, db } = createMocks({
+      maxContextTokens: userValue,
+      modelDefault,
+      maxOutputTokens,
+      provider: EModelEndpoint.bedrock,
+    });
+
+    const result = await initializeAgent(
+      {
+        req,
+        res,
+        agent,
+        loadTools,
+        endpointOption: {
+          endpoint: EModelEndpoint.agents,
+          model_parameters: { maxContextTokens: userValue },
+        },
+        allowedProviders: new Set([EModelEndpoint.bedrock]),
+        isInitialAgent: true,
+      },
+      db,
+    );
+
+    expect(result.maxContextTokens).toBe(
+      Math.round((modelDefault - maxOutputTokens) * 0.75),
+    );
   });
 });
