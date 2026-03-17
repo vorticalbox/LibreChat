@@ -1148,36 +1148,9 @@ const sharedAnthropicModels = [
 ];
 
 export const bedrockModels = [
-  'anthropic.claude-sonnet-4-6',
-  'anthropic.claude-opus-4-6-v1',
-  'anthropic.claude-sonnet-4-5-20250929-v1:0',
-  'anthropic.claude-haiku-4-5-20251001-v1:0',
-  'anthropic.claude-opus-4-1-20250805-v1:0',
-  'anthropic.claude-3-5-sonnet-20241022-v2:0',
-  'anthropic.claude-3-5-sonnet-20240620-v1:0',
-  'anthropic.claude-3-5-haiku-20241022-v1:0',
-  // 'cohere.command-text-v14', // no conversation history
-  // 'cohere.command-light-text-v14', // no conversation history
-  'cohere.command-r-v1:0',
-  'cohere.command-r-plus-v1:0',
-  'meta.llama2-13b-chat-v1',
-  'meta.llama2-70b-chat-v1',
-  'meta.llama3-8b-instruct-v1:0',
-  'meta.llama3-70b-instruct-v1:0',
-  'meta.llama3-1-8b-instruct-v1:0',
-  'meta.llama3-1-70b-instruct-v1:0',
-  'meta.llama3-1-405b-instruct-v1:0',
-  'mistral.mistral-7b-instruct-v0:2',
-  'mistral.mixtral-8x7b-instruct-v0:1',
-  'mistral.mistral-large-2402-v1:0',
-  'mistral.mistral-large-2407-v1:0',
-  'mistral.mistral-small-2402-v1:0',
-  'ai21.jamba-instruct-v1:0',
-  // 'ai21.j2-mid-v1', // no streaming
-  // 'ai21.j2-ultra-v1', no conversation history
-  'amazon.titan-text-lite-v1',
-  'amazon.titan-text-express-v1',
-  'amazon.titan-text-premier-v1:0',
+  'eu.anthropic.claude-opus-4-6-v1',
+  'eu.anthropic.claude-sonnet-4-6',
+  'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
 ];
 
 export const defaultModels = {

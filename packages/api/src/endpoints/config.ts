@@ -3,10 +3,7 @@ import { EModelEndpoint } from 'librechat-data-provider';
 import type { TEndpoint } from 'librechat-data-provider';
 import type { AppConfig } from '@librechat/data-schemas';
 import type { BaseInitializeParams, InitializeResultBase } from '~/types';
-// Removed non-OpenAI endpoints: anthropic, bedrock, google
-// import { initializeAnthropic } from './anthropic/initialize';
-// import { initializeBedrock } from './bedrock/initialize';
-// import { initializeGoogle } from './google/initialize';
+import { initializeBedrock } from './bedrock/initialize';
 import { initializeCustom } from './custom/initialize';
 import { initializeOpenAI } from './openai/initialize';
 import { getCustomEndpointConfig } from '~/app/config';
@@ -29,7 +26,6 @@ export function isKnownCustomProvider(provider?: string): boolean {
 
 /**
  * Provider configuration map mapping providers to their initialization functions
- * Only OpenAI and custom providers supported
  */
 export const providerConfigMap: Record<string, InitializeFn> = {
   [Providers.XAI]: initializeCustom,
@@ -37,7 +33,7 @@ export const providerConfigMap: Record<string, InitializeFn> = {
   [Providers.MOONSHOT]: initializeCustom,
   [Providers.OPENROUTER]: initializeCustom,
   [EModelEndpoint.openAI]: initializeOpenAI,
-  // Removed: google, bedrock, anthropic
+  [EModelEndpoint.bedrock]: initializeBedrock,
   [EModelEndpoint.azureOpenAI]: initializeOpenAI,
 };
 

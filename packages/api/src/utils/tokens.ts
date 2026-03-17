@@ -327,6 +327,12 @@ const bedrockModels = {
   ...ai21Models,
   ...amazonModels,
   ...openAIBedrockModels,
+  /** Bedrock caps all Anthropic models at 200k regardless of native context window */
+  'claude-sonnet-4': 200000,
+  'claude-sonnet-4-6': 200000,
+  'claude-opus-4-6': 200000,
+  'claude-opus-4-5': 200000,
+  'claude-haiku-4-5': 200000,
 };
 
 const xAIModels = {
