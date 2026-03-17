@@ -1,4 +1,4 @@
-# v0.8.3-rc1 - Optimized for OpenAI/Jina with frontend support
+# v0.8.3-rc1 - Optimized with split frontend/backend build caching
 
 FROM node:20-alpine AS build-base
 
@@ -7,8 +7,6 @@ RUN apk add --no-cache python3 py3-pip make g++
 WORKDIR /app
 
 FROM build-base AS dependencies
-
-ARG NODE_MAX_OLD_SPACE_SIZE=6144
 
 COPY package.json package-lock.json ./
 COPY api/package.json ./api/package.json
@@ -23,14 +21,34 @@ RUN npm config set fetch-retry-maxtimeout 600000 && \
     npm config set fetch-retry-mintimeout 15000 && \
     npm ci --no-audit --no-fund
 
-FROM dependencies AS builder
+# Stage: build shared data-provider (used by both frontend and backend)
+FROM dependencies AS shared-builder
 
-ARG NODE_MAX_OLD_SPACE_SIZE=6144
+COPY packages/data-provider/ ./packages/data-provider/
 
-COPY . .
+RUN npm run build:data-provider
 
-RUN NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run frontend
+# Stage: build frontend (only invalidated by client/ or packages/client/ changes)
+FROM shared-builder AS frontend-builder
 
+ARG NODE_MAX_OLD_SPACE_SIZE=4096
+
+COPY packages/client/ ./packages/client/
+COPY client/ ./client/
+
+RUN NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" \
+    npm run build:client-package && cd client && npm run build
+
+# Stage: build backend packages (only invalidated by packages/api/ or packages/data-schemas/ changes)
+FROM shared-builder AS backend-builder
+
+COPY packages/data-schemas/ ./packages/data-schemas/
+COPY packages/api/ ./packages/api/
+COPY api/ ./api/
+
+RUN npm run build:data-schemas && npm run build:api
+
+# Runtime
 FROM alpine:3.21 AS runtime
 
 RUN apk add --no-cache nodejs npm jemalloc && \
@@ -79,17 +97,17 @@ RUN npm ci --omit=dev --omit=optional --workspace api --workspace packages/api -
     rm -rf /app/node_modules/tiktoken && \
     apk del npm
 
-COPY --from=builder --chown=node:node /app/packages/data-provider/dist ./packages/data-provider/dist
-COPY --from=builder --chown=node:node /app/packages/data-provider/package.json ./packages/data-provider/package.json
-COPY --from=builder --chown=node:node /app/packages/data-schemas/dist ./packages/data-schemas/dist
-COPY --from=builder --chown=node:node /app/packages/data-schemas/package.json ./packages/data-schemas/package.json
-COPY --from=builder --chown=node:node /app/packages/api/dist ./packages/api/dist
-COPY --from=builder --chown=node:node /app/packages/api/package.json ./packages/api/package.json
-COPY --from=builder --chown=node:node /app/client/dist ./client/dist
-COPY --from=builder --chown=node:node /app/api ./api
+COPY --from=shared-builder --chown=node:node /app/packages/data-provider/dist ./packages/data-provider/dist
+COPY --from=shared-builder --chown=node:node /app/packages/data-provider/package.json ./packages/data-provider/package.json
+COPY --from=backend-builder --chown=node:node /app/packages/data-schemas/dist ./packages/data-schemas/dist
+COPY --from=backend-builder --chown=node:node /app/packages/data-schemas/package.json ./packages/data-schemas/package.json
+COPY --from=backend-builder --chown=node:node /app/packages/api/dist ./packages/api/dist
+COPY --from=backend-builder --chown=node:node /app/packages/api/package.json ./packages/api/package.json
+COPY --from=frontend-builder --chown=node:node /app/client/dist ./client/dist
+COPY --from=backend-builder --chown=node:node /app/api ./api
 COPY --from=dependencies --chown=node:node /app/node_modules/@img ./node_modules/@img
 
-RUN node -e "const fs=require('fs');const file='/app/packages/api/dist/index.js';if(fs.existsSync(file)){let src=fs.readFileSync(file,'utf8');src=src.replace(\"var tiktoken = require('tiktoken');\",\"var tiktoken = require('js-tiktoken');\");src=src.replaceAll('encoding_for_model','encodingForModel');src=src.replaceAll('get_encoding','getEncoding');src=src.replace('this.tokenizersCache[key].free();','if (typeof this.tokenizersCache[key].free === \\\"function\\\") { this.tokenizersCache[key].free(); }');fs.writeFileSync(file,src);}"
+RUN node -e "const fs=require('fs'),path=require('path'),dir='/app/packages/api/dist';fs.readdirSync(dir).filter(f=>f.endsWith('.js')).forEach(f=>{const fp=path.join(dir,f);let src=fs.readFileSync(fp,'utf8');src=src.replaceAll(\"require('tiktoken')\",\"require('js-tiktoken')\");src=src.replaceAll('encoding_for_model','encodingForModel');src=src.replaceAll('get_encoding','getEncoding');src=src.replaceAll('this.tokenizersCache[key].free();','if (typeof this.tokenizersCache[key].free === \"function\") { this.tokenizersCache[key].free(); }');fs.writeFileSync(fp,src);});"
 
 RUN mkdir -p /app/client/public/images /app/logs /app/uploads && \
     chown -R node:node /app/client/public/images /app/logs /app/uploads
